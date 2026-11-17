@@ -1,0 +1,11 @@
+{
+  "before": "http://127.0.0.1:8080",
+  "after": "http://127.0.0.1:8081",
+  "actions": [
+    {"path":"^/search/$","ready":"#query","steps":[
+      {"action":"fill","selector":"#query","value":"demo"},
+      {"action":"click","selector":"#search"},
+      {"action":"expectText","selector":"#result","value":"demo"}
+    ]}
+  ]
+}
