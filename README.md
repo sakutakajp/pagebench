@@ -1,6 +1,6 @@
 # pagebench
 
-同じ固定URL集合で、PSI mobile採点と**スクリーンショットを撮らない**Chromium表示・操作比較を行う小さなCLIです。Linux、Python 3.12、Node 22を想定。D1・サイトマップ生成元・本番定期ランナーとは独立しています。初期版はローカル実行のみで、CI workflowやスケジュールを含みません。
+同じ固定URL集合で、PSI mobile採点と**スクリーンショットを撮らない**Chromium表示・操作比較を行う小さなCLIです。Linux、Python 3.12、Node 22を想定。D1・サイトマップ生成元・本番定期ランナーとは独立しています。ローカル実行と手動Actions dry-runに対応し、スケジュールは含みません。
 
 ## 準備
 
@@ -68,15 +68,13 @@ node render.cjs runs/manifest.json examples/render.json runs/render 20
 
 この方式は画像の画素、フォントglyphの形、Canvas/WebGL、動画内容を検証できません。DOM外の見た目や未指定の操作は未検証。固定化していない乱数・広告・時変データは差分になり得ます。正確なCSS/座標比較は微小差にも反応します。画素一致の代替や完全なaccessibility tree検査とは扱わないでください。
 
-## 将来のGitHub Actions設定（文書例のみ）
+## 手動GitHub Actions（PSI通信なし）
 
-Actions Variablesへ `SITEMAP_URL`、Actions Secretsへ `PSI_API_KEY` を登録する設計です。今回は登録・workflow作成・起動・公開を行っていません。
+[Settings → Secrets and variables → Actions → Variables](https://github.com/sakutakajp/pagebench/settings/variables/actions) で `SITEMAP_URL=https://hirameki.dev/sitemap.xml` を設定します。Actions → **Pagebench manual dry-run** → Run workflow → default branch `main` を選んで実行してください。default branch以外はjobをスキップします。
 
-```yaml
-env:
-  SITEMAP_URL: ${{ vars.SITEMAP_URL }}
-  PSI_API_KEY: ${{ secrets.PSI_API_KEY }}
-```
+手動dispatchのみ、contents:read、15分上限、同時実行を直列化。合成試験・ローカルChromium fixtureの後、公開サイトマップを固定化し先頭最大3件だけdry-runします。`--max-batches 1` は最大10件を意味するため、別途manifest自体を3件に制限しています。Google PSI呼出しは0件、Secret参照なし、liveモードなし。summaryは件数・hashのみで、manifest/キャプチャ等のartifactを公開しません。fixtureはローカルHTMLのみで、実サイトの描画比較ではありません。
+
+APIキーを準備する場合は本人が [Settings → Secrets and variables → Actions → Secrets](https://github.com/sakutakajp/pagebench/settings/secrets/actions) の **New repository secret** から `PSI_API_KEY` を登録してください。チャットやVariablesには値を貼らないでください。今回のworkflowは登録後もキーを使わず、本番計測は別の明示的な変更が必要です。将来の参照は `SITEMAP_URL: ${{ vars.SITEMAP_URL }}`、PSI送信stepだけ `PSI_API_KEY: ${{ secrets.PSI_API_KEY }}` とします。
 
 ## 検証と制約
 
