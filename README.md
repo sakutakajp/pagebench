@@ -110,3 +110,9 @@ PSIは合成レスポンスのみ。秘密値は試験用文字列で、実秘�
 全ページ本番実行は未実施。事前に対象manifest hash、公開URLの実在/canonical、noindex範囲、代表操作、外部asset許可、PSI予算を固定してください。既存hirameki-dev/growth-loop/プロダクションrunnerには変更を加えていません。
 
 最終ローカル検証: Python 9試験成功、Node構文check成功、Chromium 154.0.8037.57でfixture 8件（合格1・変更6・操作未設定1）。独立した2サイトのmanifest生成とPSI dry-runも成功。依存取得は標準npm registryのみ。
+
+## 固定3ページの手動Chromiumアクセス確認
+
+Actions → **Public Chromium capture smoke** → Run workflow → `main` で起動します。入力・Secrets・Variablesは不要です。対象は `/ja/`、`/ja/amidakuji/`、`/ja/font/serif/list/%E6%9C%9D/` の固定3ページのみ。サイトマップdry-runとは別workflowです。
+
+標準Chromium・通常TLSでGET/HEADのみを許可し、操作は実行しません。取得データはメモリ内だけで破棄し、snapshot・スクリーンショット・artifactを保存/公開しません。ログ/summaryは件数と固定失敗分類のみ。最初の失敗で停止し、残りはpending。再試行・UA偽装・TLS回避・WAF変更はありません。成功しても「アクセス/取得できた・操作未検証」であり、baseline保存完了や本番回帰テスト合格を意味しません。スケジュールや自動dispatchはありません。
