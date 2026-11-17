@@ -116,3 +116,11 @@ PSIは合成レスポンスのみ。秘密値は試験用文字列で、実秘�
 Actions → **Public Chromium capture smoke** → Run workflow → `main` で起動します。入力・Secrets・Variablesは不要です。対象は `/ja/`、`/ja/amidakuji/`、`/ja/font/serif/list/%E6%9C%9D/` の固定3ページのみ。サイトマップdry-runとは別workflowです。
 
 標準Chromium・通常TLSでGET/HEADのみを許可し、操作は実行しません。取得データはメモリ内だけで破棄し、snapshot・スクリーンショット・artifactを保存/公開しません。ログ/summaryは件数と固定失敗分類のみ。最初の失敗で停止し、残りはpending。再試行・UA偽装・TLS回避・WAF変更はありません。成功しても「アクセス/取得できた・操作未検証」であり、baseline保存完了や本番回帰テスト合格を意味しません。スケジュールや自動dispatchはありません。
+
+## 手動mobile PSI実測pilot（最大3件）
+
+Actions → **Manual mobile PSI pilot (max 3)** → Run workflow → `main`。既定の `execute=false` はキー不要・通信0件の計画のみです。本人が実測を行う場合だけ `execute` にチェックして起動します。`PSI_API_KEY` はrepository Actions Secretとして本人が登録し、実測stepだけに渡されます。未設定なら通信前に失敗します。
+
+対象は `https://hirameki.dev/ja/`、`https://hirameki.dev/en/spin-wheel/`、`https://hirameki.dev/ja/amidakuji/` の固定3件。URL入力や対象変更はできません。1実行最大3リクエスト、retryなし、最初の失敗・隔離で停止。公式Google HTTPS固定endpoint・headerのみ、TLS検証・redirect拒否・認証反射検知・canonical/mobile/score検証を既存transportのまま使います。ログ/summaryは固定分類と件数、全3件成功時のみ平均スコアです。失敗を0点にせず平均はnull。生応答・個別行・checkpoint・artifactを保存せず、D1等へ書きません。
+
+同時実行は直列化、10分上限、手動default branch限定です。再実行は新たな最大3リクエストになるため、自動で繰り返さないでください。タイムアウト等で結果不明の場合も自動再試行しません。ブラウザーsmoke・サイトマップdry-runとは別workflowで、スケジュールはありません。この追加の検証は合成レスポンスのみで、開発作業から実PSIやdispatchは行っていません。
