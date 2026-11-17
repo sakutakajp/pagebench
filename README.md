@@ -23,7 +23,7 @@ export SITEMAP_URL=https://hirameki.dev/sitemap.xml
 python3 sitemap.py --out runs/manifest.json
 ```
 
-XML標準namespaceの `urlset` と `sitemapindex` に対応。index内の文書・掲載URLは同一originのみ、UTF-8、HTTPS・標準443（明示ポートも不可）、資格情報・query・fragmentなし。DTD/entity・壊れたXML・外部originを拒否し、展開しません。gzip sitemapは未対応。最大32文書、1文書4MiB、計64MiB、100,000 URL、socket15秒・CLI全体120秒上限。DNSの非public IPを拒否するため、内部用previewには使えません。公開HTTPS previewは対応します。DNS解決と接続は別なので、攻撃者が制御するDNS/サイトを対象にせず、利用者が管理する信頼済み公開サイトだけを設定してください。
+XML標準namespaceの `urlset` と `sitemapindex` に対応。 標準は `http://www.sitemaps.org/schemas/sitemap/0.9`。既存サイトとの互換性のため、観測済みの非標準 `http://www.sitemaps.org/schema/sitemap/0.9` だけも明示的に許可します。各文書のroot・子要素は同一namespace必須で、未知・混在namespaceは拒否します。index内の文書・掲載URLは同一originのみ、UTF-8、HTTPS・標準443（明示ポートも不可）、資格情報・query・fragmentなし。DTD/entity・壊れたXML・外部originを拒否し、展開しません。gzip sitemapは未対応。最大32文書、1文書4MiB、計64MiB、100,000 URL、socket15秒・CLI全体120秒上限。DNSの非public IPを拒否するため、内部用previewには使えません。公開HTTPS previewは対応します。DNS解決と接続は別なので、攻撃者が制御するDNS/サイトを対象にせず、利用者が管理する信頼済み公開サイトだけを設定してください。
 
 順序はURLソート、重複は統合、日本語はNFCの正規UTF-8大文字パーセント表現に統一。二重encode・小文字escape・encoded ASCII/区切り文字・dot segment・制御文字等の曖昧表現は拒否します。正規化はredirect追従ではありません。検索掲載用サイトマップにはnoindexや未掲載ページがないため、全公開ページの網羅性は保証しません。
 

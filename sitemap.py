@@ -10,6 +10,7 @@ import urllib.request
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 from common import canonical, origin, digest, write
+from diagnostics import stage, DiagnosticError
 from psi_transport import NoRedirect
 MAX_BYTES = 4 * 1024 * 1024
 
@@ -41,36 +42,44 @@ def fetch(value):
 
 
 def generate(start, loader=fetch):
-    if not start:
-        raise ValueError('SITEMAP_URL_UNSET')
-    parsed = urlsplit(start)
-    site = origin(f'{parsed.scheme}://{parsed.netloc}')
-    safe_url(start, site)
+    with stage('config'):
+        if not start:
+            raise ValueError('SITEMAP_URL_UNSET')
+        parsed = urlsplit(start)
+        site = origin(f'{parsed.scheme}://{parsed.netloc}')
+        safe_url(start, site)
     queue = [start]; seen = set(); urls = set(); total = 0; deadline = time.monotonic()+120
-    ns = '{http://www.sitemaps.org/schemas/sitemap/0.9}'
+    namespaces = ('{http://www.sitemaps.org/schemas/sitemap/0.9}',
+                  '{http://www.sitemaps.org/schema/sitemap/0.9}')
     while queue:
         url = queue.pop(0)
         if url in seen: continue
-        if len(seen) >= 32 or time.monotonic() > deadline: raise ValueError('SITEMAP_LIMIT')
-        seen.add(url); raw = loader(url); total += len(raw)
-        if len(raw) > MAX_BYTES or total > 16*MAX_BYTES: raise ValueError('SITEMAP_SIZE')
-        # UTF-8 only, reject DTD/entities before parsing, including UTF-16 encodings.
-        text = raw.decode('utf-8-sig', errors='strict')
-        if '<!' in text or '\x00' in text: raise ValueError('UNSAFE_XML')
-        root = ET.fromstring(text)
-        if root.tag not in (ns+'urlset', ns+'sitemapindex'): raise ValueError('XML_ROOT')
-        child = ns+('url' if root.tag == ns+'urlset' else 'sitemap')
-        for element in root:
-            if element.tag != child: raise ValueError('XML_CHILD')
-            locs = element.findall(ns+'loc')
-            if len(locs) != 1 or len(locs[0]) or not locs[0].text: raise ValueError('XML_LOC')
-            value = locs[0].text.strip()
-            if root.tag == ns+'sitemapindex':
-                queue.append(safe_url(value, site))
-                if len(queue)>1000: raise ValueError('SITEMAP_LIMIT')
-            else:
-                urls.add(canonical(value, site))
-                if len(urls)>100000: raise ValueError('URL_LIMIT')
+        with stage('fetch'):
+            if len(seen) >= 32 or time.monotonic() > deadline: raise ValueError('SITEMAP_LIMIT')
+            seen.add(url); raw = loader(url); total += len(raw)
+            if len(raw) > MAX_BYTES or total > 16*MAX_BYTES: raise ValueError('SITEMAP_SIZE')
+        with stage('xml'):
+            # UTF-8 only, reject DTD/entities before parsing, including UTF-16 encodings.
+            text = raw.decode('utf-8-sig', errors='strict')
+            if '<!' in text or '\x00' in text: raise ValueError('UNSAFE_XML')
+            root = ET.fromstring(text)
+            ns = next((n for n in namespaces if root.tag in (n+'urlset', n+'sitemapindex')), None)
+            if ns is None: raise ValueError('XML_ROOT')
+            if any(not element.tag.startswith(ns) for element in root.iter()):
+                raise ValueError('XML_MIXED_NAMESPACE')
+            child = ns+('url' if root.tag == ns+'urlset' else 'sitemap')
+        with stage('content'):
+            for element in root:
+                if element.tag != child: raise ValueError('XML_CHILD')
+                locs = element.findall(ns+'loc')
+                if len(locs) != 1 or len(locs[0]) or not locs[0].text: raise ValueError('XML_LOC')
+                value = locs[0].text.strip()
+                if root.tag == ns+'sitemapindex':
+                    queue.append(safe_url(value, site))
+                    if len(queue)>1000: raise ValueError('SITEMAP_LIMIT')
+                else:
+                    urls.add(canonical(value, site))
+                    if len(urls)>100000: raise ValueError('URL_LIMIT')
     m = {'schema':1, 'tool_version':'1.0.0', 'origin':site,
          'source':{'sitemap_url':start,'documents':sorted(seen)},
          'records':[{'url':u} for u in sorted(urls)]}
@@ -85,6 +94,10 @@ if __name__ == '__main__':
         signal.alarm(120)
         m=generate(os.environ.get('SITEMAP_URL')); signal.alarm(0); write(a.out,m)
         print({'count':len(m['records']),'sha256':m['sha256']})
+    except DiagnosticError as exc:
+        import json
+        print(json.dumps(exc.public()))
+        raise SystemExit(1)
     except Exception:
         print('{"status":"failed","reason":"SITEMAP_IMPORT_FAILED"}')
         raise SystemExit(1)

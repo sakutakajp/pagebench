@@ -7,6 +7,7 @@ from pathlib import Path
 from common import digest, manifest, write
 from sitemap import generate
 from psi import run
+from diagnostics import DiagnosticError
 
 
 def plan(start, folder, loader=None):
@@ -40,6 +41,9 @@ if __name__ == '__main__':
         if summary:
             with open(summary, 'a') as f:
                 f.write('Pagebench dry-run\n\n```json\n' + json.dumps(result) + '\n```\n')
+    except DiagnosticError as exc:
+        print(json.dumps(exc.public()))
+        raise SystemExit(1)
     except Exception:
-        print('{"status":"failed","reason":"MANUAL_PLAN_FAILED"}')
+        print('{"status":"failed","stage":"plan","reason":"PLAN_FAILED"}')
         raise SystemExit(1)
