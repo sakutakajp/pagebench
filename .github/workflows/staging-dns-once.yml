@@ -1,0 +1,48 @@
+name: Staging DNS once
+on:
+  push:
+    branches: [diag/staging-dns-once]
+    paths: [.github/workflows/staging-dns-once.yml]
+permissions: {}
+jobs:
+  dns:
+    if: github.ref == 'refs/heads/diag/staging-dns-once' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Classify one OS DNS lookup without HTTP
+        shell: python3 {0}
+        run: |
+          import ipaddress
+          import json
+          import signal
+          import socket
+
+          def timeout(*_):
+              raise TimeoutError()
+
+          signal.signal(signal.SIGALRM, timeout)
+          signal.alarm(20)
+          try:
+              addresses = socket.getaddrinfo(
+                  'staging.hirameki.dev', 443, type=socket.SOCK_STREAM
+              )
+              if not addresses:
+                  result = 'EMPTY_RESPONSE'
+              elif all(ipaddress.ip_address(item[4][0]).is_global for item in addresses):
+                  result = 'PUBLIC_ADDRESSES'
+              else:
+                  result = 'NONPUBLIC_ADDRESS'
+          except socket.gaierror as error:
+              result = {
+                  socket.EAI_AGAIN: 'EAI_AGAIN',
+                  socket.EAI_NONAME: 'EAI_NONAME',
+              }.get(error.errno, 'DNS_OTHER')
+          except TimeoutError:
+              result = 'TIMEOUT'
+          except Exception:
+              result = 'OTHER_ERROR'
+          finally:
+              signal.alarm(0)
+          print(json.dumps({'lookup_calls': 1, 'result': result}))
+          raise SystemExit(0 if result == 'PUBLIC_ADDRESSES' else 1)
