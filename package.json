@@ -1,1 +1,1 @@
-{"name":"pagebench","version":"0.1.0","private":true,"description":"Bounded PSI and screenshot-free page comparison","scripts":{"test":"node --test tests/render.test.cjs","check":"node --check render.cjs && node --check tests/render.test.cjs"},"devDependencies":{"playwright":"1.53.2"}}
+{"name":"pagebench","version":"0.1.0","private":true,"description":"Bounded PSI and screenshot-free page comparison","scripts":{"test":"node --test tests/render.test.cjs","check":"node --check render.cjs && node --check tests/render.test.cjs"},"devDependencies":{"playwright":"1.55.1"}}
