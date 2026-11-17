@@ -1,0 +1,12 @@
+{
+  "origin": "http://127.0.0.1:8080",
+  "build_label": "before-demo",
+  "data_policy": "public-reviewed",
+  "actions": [
+    {"path":"^/search/$","ready":"#query","steps":[
+      {"action":"fill","selector":"#query","value":"demo"},
+      {"action":"click","selector":"#search"},
+      {"action":"expectText","selector":"#result","value":"demo"}
+    ]}
+  ]
+}

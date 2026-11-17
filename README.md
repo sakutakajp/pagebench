@@ -68,6 +68,33 @@ node render.cjs runs/manifest.json examples/render.json runs/render 20
 
 この方式は画像の画素、フォントglyphの形、Canvas/WebGL、動画内容を検証できません。DOM外の見た目や未指定の操作は未検証。固定化していない乱数・広告・時変データは差分になり得ます。正確なCSS/座標比較は微小差にも反応します。画素一致の代替や完全なaccessibility tree検査とは扱わないでください。
 
+## 改善前JSONを凍結して後日比較（ローカルのみ）
+
+従来の2 origin同時比較に加え、同じ `render.cjs` のcapture/compareを使って、改善前・改善後を別の日に保存できます。スクリーンショットは取りません。このモードだけは正規化した可視DOM/rect/style/代表操作結果のJSONを0600でローカル保存します。既存の2 originコマンドは引き続きsummaryだけを保存します。
+
+1. サイト側で発見した同じmanifestを固定します（noindexも含めるなら手動URL配列を使用）。
+2. `examples/baseline.json` をコピーし、origin・任意のbuild_label・代表操作を設定します。`data_policy: public-reviewed` は、対象が公開用または合成fixtureで個人情報を含まないことを確認した場合だけ指定します。ログイン、Cookie、認証header、storageState、端末情報などを注入する設定はありません。
+3. 改善前を取得します。1起動1〜100ページ。完了前は同じ引数・ディレクトリで再開できます。
+
+```bash
+node baseline.cjs capture runs/manifest.json /tmp/before-profile.json runs/baseline-before 20
+# pendingが0になるまで同じコマンドで続きを取得
+```
+
+4. 全対象を処理すると `frozen.json` が作られます。失敗も失敗として凍結され、再試行や成功への置換はしません。baseline ID、manifest hash、origin、buildラベル、ブラウザー版・固定viewport/locale・操作profile・ソースhashを記録します。凍結後の再実行は内容を検証して終了し、再取得・上書きしません。変更版を取得する場合は必ず新しいディレクトリを使います。
+5. 改善前サーバーを停止しても構いません。同じmanifestと操作設定で改善後を保存し、両方の凍結済みディレクトリをオフライン比較します。
+
+```bash
+node baseline.cjs capture runs/manifest.json /tmp/after-profile.json runs/baseline-after 20
+node baseline.cjs compare runs/baseline-before runs/baseline-after runs/baseline-comparison.json
+```
+
+origin・buildラベルは前後で変更可能。manifest・操作profile・asset許可・ブラウザー/正規化設定・ソースhashの不一致は比較を拒否します。各JSONとmetadataをhashで照合し、欠落・改変を検出します。秘密鍵による署名ではなく、信頼済みの個人ディレクトリでの事故検出です。snapshotは番号付きJSON、summaryは別ファイルで、将来の保存先adapterは未実装です。D1/R2やpublic artifactへの送信はありません。
+
+比較結果は `passed` / `changed` / `matched_actions_unverified` / `unverified` を区別。取得失敗・中断・片側欠落を合格にせず、JSONファイル自体が欠落した場合は整合性エラーです。中断中のURLは再照会せず未検証扱い。プロセスが消失してlockが残った場合は、不在を確認後 `running.lock` だけを手動削除して再開します。
+
+安全側に失敗させるため、password/email/tel等の入力欄、query/fragment付きリンク、認証情報やemailに似た文字列の検出時にはそのページを保存しません。ただし全種類の個人情報を自動検出する保証はありません。公開用・合成データだけを使用し、JSONは共有・コミットしないでください。出力先例の `runs/` はgitignore済みです。画像画素・フォントglyph・Canvas/WebGL・未設定の操作は検証できません。代表操作は合成fixtureのclick/完全一致assertionで検証しており、実サイトのルーレット等に対応済みという意味ではありません。
+
 ## 手動GitHub Actions（PSI通信なし）
 
 [Settings → Secrets and variables → Actions → Variables](https://github.com/sakutakajp/pagebench/settings/variables/actions) で `SITEMAP_URL=https://hirameki.dev/sitemap.xml` を設定します。Actions → **Pagebench manual dry-run** → Run workflow → default branch `main` を選んで実行してください。default branch以外はjobをスキップします。

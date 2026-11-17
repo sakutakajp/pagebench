@@ -35,6 +35,11 @@ async function capture(browser, base, pathname, cfg) {
     if (matches.length>1) throw Error('AMBIGUOUS_ACTION_PROFILE');
     const profile = matches[0];
     if (profile?.ready) await page.locator(profile.ready).waitFor({state:'visible'});
+    if(cfg.persist_public) {
+      const sensitive=await page.evaluate(()=>[...document.querySelectorAll('input')].some(e=>
+        (['password','email','tel'].includes(e.type) || /name|address|email|tel|cc-|password|one-time-code/.test(e.autocomplete))));
+      if(sensitive)throw Error('PERSONAL_INPUT_REJECTED');
+    }
     const snapshot = async () => page.evaluate(() => {
       if (document.documentElement.scrollHeight>20000) throw Error('PAGE_SIZE');
       const normalize = value => {
@@ -76,7 +81,14 @@ async function capture(browser, base, pathname, cfg) {
         }
       } catch { actions='failed'; }
     }
-    return {initial,final:await snapshot(),actions,outcomes,errors};
+    const final=await snapshot();
+    if(cfg.persist_public) {
+      if(await page.evaluate(()=>[...document.querySelectorAll('input')].some(e=>
+        ['password','email','tel'].includes(e.type)||/name|address|email|tel|cc-|password|one-time-code/.test(e.autocomplete))))throw Error('PERSONAL_INPUT_REJECTED');
+      // URL queries/fragments may carry session or user data. Reject instead of persisting.
+      if([...initial,...final].some(e=>[e.href,e.src].some(v=>v && /[?#]/.test(v))))throw Error('PRIVATE_URL_REJECTED');
+    }
+    return {initial,final,actions,outcomes,errors};
   } finally { await ctx.close(); }
 }
 function compare(a,b) {
