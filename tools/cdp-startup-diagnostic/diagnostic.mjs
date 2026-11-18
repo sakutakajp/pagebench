@@ -1,6 +1,6 @@
 // Independent observation only. No Puppeteer/Lighthouse/measurement imports or forwarding path.
 import http from 'node:http';
-import{trackProcess,cleanupDiagnostic,finishObservation}from'./cleanup.mjs';
+import{trackProcess,cleanupDiagnostic,finishObservation,freezeVersion}from'./cleanup.mjs';
 import {spawn} from 'node:child_process';
 import {access,mkdtemp,readFile,rm} from 'node:fs/promises';
 import {constants} from 'node:fs';
@@ -33,6 +33,7 @@ export function commandAllowed(method,p,child=false){
  if(!p||typeof p!=='object'||Array.isArray(p))return false;
  if(method==='Target.setAutoAttach')return p?.autoAttach===true&&p.waitForDebuggerOnStart===true&&p.flatten===true&&Object.keys(p).sort().join(',')==='autoAttach,filter,flatten,waitForDebuggerOnStart'&&JSON.stringify(p.filter)===JSON.stringify(autoAttachParams(child).filter);
  if(method==='Target.setDiscoverTargets')return p?.discover===true&&Object.keys(p).length===1;
+ if(method==='Browser.getVersion')return !child&&Object.keys(p).length===0;
  if(method==='Target.getTargets')return Object.keys(p||{}).length===0;
  return method==='Target.createTarget'&&p?.url==='about:blank'&&p.forTab===true&&Object.keys(p).length===2;
 }
@@ -45,7 +46,7 @@ export async function denyProxy(){
  return {url:'http://127.0.0.1:'+server.address().port,close:async()=>{for(const s of sockets)s.destroy();await new Promise(r=>server.close(r));}};
 }
 export class Observer{
- constructor(wire,terminate){this.wire=wire;this.terminate=terminate;this.pending=new Map();this.serial=0;this.sequence=[];this.stopped=false;this.code='OBSERVING';this.sessions=new Map();this.tasks=new Set();this.createIssued=false;this.createdTab=null;this.tabSession=null;this.pageSession=null;this.uiCount=0;this.uiSeen=0;this.initializing=false;this.pageInitialized=false;
+ constructor(wire,terminate){this.wire=wire;this.terminate=terminate;this.pending=new Map();this.serial=0;this.sequence=[];this.stopped=false;this.code='OBSERVING';this.sessions=new Map();this.tasks=new Set();this.createIssued=false;this.createdTab=null;this.tabSession=null;this.pageSession=null;this.uiCount=0;this.uiSeen=0;this.initializing=false;this.pageInitialized=false;this.browserVersion=freezeVersion({code:'VERSION_NOT_ATTEMPTED'});
   wire.onmessage=e=>{const task=this.receive(typeof e==='string'?e:e.data);this.tasks.add(task);task.finally(()=>this.tasks.delete(task));};
   wire.onclose=()=>this.stop('CONTROL_LOST');wire.onerror=()=>this.stop('CONTROL_LOST');
  }
@@ -63,7 +64,7 @@ export class Observer{
   if((!pageQuery&&!commandAllowed(method,params,!!sessionId))||sessionId!==undefined&&(typeof sessionId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId))){this.stop('COMMAND_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}
   if(this.stopped)return Promise.reject(Error('DIAGNOSTIC_STOPPED'));
   if(method==='Target.createTarget'){if(this.createIssued){this.stop('EXTRA_TAB_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}this.createIssued=true;}
-  return new Promise((resolve,reject)=>{const id=++this.serial;const timer=setTimeout(()=>{this.stop('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));},2000);this.pending.set(id,{resolve,reject,timer});try{this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));}catch{this.stop('CONTROL_LOST');}});
+  return new Promise((resolve,reject)=>{const id=++this.serial;const versionQuery=method==='Browser.getVersion';const timer=setTimeout(()=>{if(versionQuery){this.pending.delete(id);reject(Error('VERSION_TIMEOUT'));}else{this.stop('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));}},2000);this.pending.set(id,{resolve,reject,timer,versionQuery});try{this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));}catch{this.stop('CONTROL_LOST');}});
  }
  async initializePage(){
   if(this.initializing||this.stopped||!this.lineage())return;
@@ -106,7 +107,7 @@ export class Observer{
   try{
    if(typeof raw!=='string'||raw.length>262144){this.stop('INPUT_LIMIT');return;}
    const m=JSON.parse(raw);
-   if(this.pending.has(m.id)){const p=this.pending.get(m.id);this.pending.delete(m.id);clearTimeout(p.timer);if(m.error){p.reject(Error('CDP_COMMAND_FAILED'));this.stop('CDP_COMMAND_FAILED');}else p.resolve(m.result||{});return;}
+   if(this.pending.has(m.id)){const p=this.pending.get(m.id);this.pending.delete(m.id);clearTimeout(p.timer);if(m.error){p.reject(Error(p.versionQuery?'VERSION_COMMAND_FAILED':'CDP_COMMAND_FAILED'));if(!p.versionQuery)this.stop('CDP_COMMAND_FAILED');}else p.resolve(m.result||{});return;}
    if(m.method==='Target.detachedFromTarget'&&this.sessions.has(m.params?.sessionId)||m.method==='Inspector.detached'||m.method==='Inspector.targetCrashed'){this.stop('PROTECTION_LOST');return;}
    if(m.method==='Target.targetDestroyed'&&[...this.sessions.values()].some(s=>s.target===m.params?.targetId)){this.stop('PROTECTION_LOST');return;}
    const labels={'Target.targetCreated':'CREATED','Target.targetInfoChanged':'INFO_CHANGED','Target.attachedToTarget':m.params?.waitingForDebugger?'ATTACHED_PAUSED':'ATTACHED_NOT_PAUSED'};
@@ -119,9 +120,19 @@ export class Observer{
    }
   }catch{this.stop('PROTOCOL_OR_CAPTURE_FAILED');}
  }
+ async readVersion(){
+  try{
+   const result=await this.call('Browser.getVersion');
+   const product=result.product;
+   if(product===undefined||product===null||product===''){this.browserVersion=freezeVersion({code:'VERSION_MISSING'});return;}
+   const match=typeof product==='string'&&/^(?:Chrome|HeadlessChrome)\/(\d{1,10}\.\d{1,10}\.\d{1,10}\.\d{1,10})$/.exec(product);
+   this.browserVersion=freezeVersion(match?{code:'VERSION_VERIFIED',version:match[1]}:{code:'VERSION_INVALID'});
+  }catch(error){this.browserVersion=freezeVersion({code:['VERSION_TIMEOUT','VERSION_COMMAND_FAILED'].includes(error.message)?error.message:'VERSION_CONTROL_LOST'});}
+ }
  async collect(){
   try{
    await this.call('Target.setAutoAttach',autoAttachParams());this.record('AUTOATTACH_READY');
+   await this.readVersion();
    await this.call('Target.setDiscoverTargets',{discover:true});
    const snapshot=await this.call('Target.getTargets');
    for(const t of snapshot.targetInfos||[]){const k=kindOf(t);this.record('SNAPSHOT',k);if(k.startsWith('TYPE_'))this.stop('TARGET_TYPE_UNCLASSIFIED');}
@@ -160,8 +171,8 @@ export async function main(){
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{wire.close();reject(Error('TIMEOUT'));},3000);wire.onopen=()=>{clearTimeout(timer);resolve();};wire.onerror=()=>{clearTimeout(timer);reject(Error('CONNECTION_FAILED'));};});
   observer=new Observer(wire,kill);observation=await observer.collect();
  }catch{observation=observer?.result()||{schema:1,kind:'isolated-cdp-startup-observation',code:sandbox?'CHROME_SANDBOX_FAILED':code,sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
- const captured=freezeObservation(observation);
+ const captured=freezeObservation(observation),capturedVersion=freezeVersion(observer?.browserVersion||{code:'VERSION_NOT_ATTEMPTED'});
  const cleanup=await cleanupDiagnostic({observer,wire,proc,tracked,proxy,profile,removeProfile:p=>rm(p,{recursive:true,force:true})});
- return finishObservation(captured,cleanup);
+ return finishObservation(captured,cleanup,capturedVersion);
 }
 if(process.argv[1]===new URL(import.meta.url).pathname){try{const result=await main();console.log(JSON.stringify(result));if(result.status!=='success')process.exitCode=1;}catch{console.log('{"kind":"isolated-cdp-startup-observation","code":"DIAGNOSTIC_INTERNAL_FAILED","status":"failed","site_navigations":0,"outbound_forwarding":0,"target_resumes":0}');process.exitCode=1;}}

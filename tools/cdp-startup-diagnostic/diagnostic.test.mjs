@@ -1,10 +1,13 @@
 import{test}from'node:test';import assert from'node:assert/strict';
+import{finishObservation,freezeVersion}from'./cleanup.mjs';
 import http from'node:http';import net from'node:net';
 import{Observer,kindOf,autoAttachParams,commandAllowed,denyProxy,endpoint}from'./diagnostic.mjs';
 function harness(options={}){let ended=0,observer;const sent=[];const wire={send(raw){const m=JSON.parse(raw);sent.push(m);queueMicrotask(()=>{
  if(m.method==='Page.getFrameTree'&&options.extraPage){wire.onmessage(JSON.stringify({method:'Target.attachedToTarget',sessionId:options.ui?'ui-session':'tab-session',params:{sessionId:'page2',targetInfo:{type:'page',targetId:'P2',url:'about:blank'},waitingForDebugger:true}}));return;}
  if(m.method==='Page.getFrameTree'&&options.detachUI){wire.onmessage(JSON.stringify({method:'Target.detachedFromTarget',params:{sessionId:'ui-session'}}));return;}
- const result=m.method==='Target.getTargets'?{targetInfos:[{type:'browser',url:'SECRET',title:'SECRET',targetId:'SECRET'}]}:m.method==='Target.createTarget'?{targetId:options.badTab?'wrong':'T'}:m.method==='Page.getFrameTree'?{frameTree:{frame:{url:options.badFrame?'https://not-permitted.invalid/?SECRET':'about:blank'}}}:{};
+ if(m.method==='Browser.getVersion'&&options.versionTimeout)return;
+ if(m.method==='Browser.getVersion'&&options.versionError){wire.onmessage(JSON.stringify({id:m.id,error:{message:'SECRET https://private.invalid/?SECRET'}}));return;}
+ const result=m.method==='Browser.getVersion'?{...(Object.hasOwn(options,'product')?{product:options.product}:{product:'Chrome/157.0.8103.50'}),userAgent:'SECRET',revision:'SECRET',jsVersion:'SECRET'}:m.method==='Target.getTargets'?{targetInfos:[{type:'browser',url:'SECRET',title:'SECRET',targetId:'SECRET'}]}:m.method==='Target.createTarget'?{targetId:options.badTab?'wrong':'T'}:m.method==='Page.getFrameTree'?{frameTree:{frame:{url:options.badFrame?'https://not-permitted.invalid/?SECRET':'about:blank'}}}:{};
  wire.onmessage(JSON.stringify({id:m.id,result}));
  const attach=(type,sid,id,parent,waiting=true)=>wire.onmessage(JSON.stringify({method:'Target.attachedToTarget',...(parent?{sessionId:parent}:{}),params:{sessionId:sid,targetInfo:{type,targetId:id,url:type==='page'?'about:blank':'',title:'SECRET'},waitingForDebugger:waiting}}));
  if(m.method==='Target.createTarget')attach('tab','tab-session','T');
@@ -66,4 +69,37 @@ test('no page while browser UI is paused produces an explicit no-page outcome wi
 test('additional tab and page queries addressed to UI are refused',async()=>{
  const h=harness();h.observer.createIssued=true;await h.observer.receive(JSON.stringify({method:'Target.attachedToTarget',params:{sessionId:'tab1',targetInfo:{type:'tab',targetId:'T'},waitingForDebugger:true}}));await h.observer.receive(JSON.stringify({method:'Target.attachedToTarget',params:{sessionId:'tab2',targetInfo:{type:'tab',targetId:'T2'},waitingForDebugger:true}}));assert.equal(h.observer.code,'EXTRA_TAB_REJECTED');
  const q=harness();await assert.rejects(q.observer.call('Page.enable',{},'ui-session'),/REJECTED/);assert.equal(q.sent.length,0);
+});
+
+test('version comes from the same root CDP only; arbitrary product fields never escape',async()=>{
+ assert.equal(commandAllowed('Browser.getVersion',{}),true);assert.equal(commandAllowed('Browser.getVersion',{},true),false);assert.equal(commandAllowed('Browser.getVersion',{SECRET:true}),false);
+ const h=harness({ui:true});const r=await h.observer.collect();assert.deepEqual(h.observer.browserVersion,{code:'VERSION_VERIFIED',version:'157.0.8103.50'});
+ assert.equal(h.sent.filter(m=>m.method==='Browser.getVersion').length,1);assert.equal(h.sent.find(m=>m.method==='Browser.getVersion').sessionId,undefined);
+ assert.ok(h.sent.findIndex(m=>m.method==='Target.setAutoAttach')<h.sent.findIndex(m=>m.method==='Browser.getVersion'));
+ assert.equal(finishObservation(r,{status:'complete'},h.observer.browserVersion).status,'success');
+ assert.equal(finishObservation(r,{status:'complete'}).status,'failed');
+ assert.equal(finishObservation(r,{status:'failed'},h.observer.browserVersion).status,'failed');
+ assert.ok(!JSON.stringify(finishObservation(r,{status:'complete'},h.observer.browserVersion)).includes('SECRET'));
+ const child=harness();await assert.rejects(child.observer.call('Browser.getVersion',{},'ui-session'),/REJECTED/);assert.equal(child.sent.length,0);
+});
+test('missing and invalid versions fail separately while complete target observation survives',async()=>{
+ for(const [product,code]of [[undefined,'VERSION_MISSING'],[null,'VERSION_MISSING'],['','VERSION_MISSING'],[157,'VERSION_INVALID'],['Chrome/157.0.8103','VERSION_INVALID'],['SECRET Chrome/157.0.8103.50','VERSION_INVALID'],['Chrome/157.0.8103.50?SECRET','VERSION_INVALID'],['Chrome/157.0.8103.50\n','VERSION_INVALID'],['HeadlessChrome/157.0.8103.50','VERSION_VERIFIED']]){
+  const h=harness({product,ui:true}),r=await h.observer.collect();const final=finishObservation(r,{status:'complete'},h.observer.browserVersion);
+  assert.equal(r.code,'BLANK_PAGE_PROTOCOL_READY');assert.equal(r.page_protocol_initialized,true);assert.equal(h.observer.browserVersion.code,code);assert.equal(final.status,code==='VERSION_VERIFIED'?'success':'failed');assert.equal(r.browser_ui_resumes,0);assert.equal(r.outbound_forwarding,0);assert.ok(!JSON.stringify(final).includes('SECRET'));
+ }
+ assert.deepEqual(freezeVersion({code:'VERSION_VERIFIED',version:'157.0.8103.50 SECRET'}),{code:'VERSION_INVALID',version:null});
+});
+test('version timeout or CDP error retains observation and cleanup instead of masking them',async()=>{
+ for(const [options,code]of [[{versionTimeout:true},'VERSION_TIMEOUT'],[{versionError:true},'VERSION_COMMAND_FAILED']]){
+  const h=harness({...options,ui:true}),r=await h.observer.collect();const v=h.observer.browserVersion;
+  assert.equal(v.code,code);assert.equal(r.code,'BLANK_PAGE_PROTOCOL_READY');assert.equal(r.page_protocol_initialized,true);assert.ok(r.sequence.some(e=>e.event==='PAGE_PROTOCOL_READY'));assert.equal(h.ended,1);
+  const final=finishObservation(r,{status:'failed',stages:[{code:'PROFILE_DELETE_FAILED'}]},v);assert.equal(final.status,'failed');assert.equal(final.browser_version.code,code);assert.equal(final.cleanup.stages[0].code,'PROFILE_DELETE_FAILED');assert.deepEqual(final.sequence,r.sequence);assert.ok(!JSON.stringify(final).includes('SECRET'));
+ }
+});
+test('version cannot replace protection-loss evidence and is immutable before cleanup',async()=>{
+ const h=harness({worker:true}),r=await h.observer.collect(),version=h.observer.browserVersion;
+ assert.equal(r.code,'AUXILIARY_TARGET_STOP');assert.equal(version.code,'VERSION_VERIFIED');assert.ok(Object.isFrozen(version));
+ h.observer.browserVersion={code:'VERSION_INVALID',version:'SECRET'};
+ const final=finishObservation(r,{status:'complete'},version);assert.equal(final.code,'AUXILIARY_TARGET_STOP');assert.equal(final.browser_version.version,'157.0.8103.50');assert.equal(final.status,'failed');
+ const c=harness();const task=c.observer.readVersion();c.wire.onclose();await task;assert.equal(c.observer.browserVersion.code,'VERSION_CONTROL_LOST');assert.equal(c.observer.result().code,'CONTROL_LOST');
 });

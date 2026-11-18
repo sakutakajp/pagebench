@@ -25,16 +25,6 @@ jobs:
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
-      - name: Fixed numeric browser version
-        run: |
-          node --input-type=module <<'JS'
-          import {execFile} from 'node:child_process';
-          execFile('/opt/google/chrome/chrome',['--version'],{encoding:'utf8',timeout:3000,maxBuffer:4096},(error,text)=>{
-            const version=!error&&/\b\d+\.\d+\.\d+\.\d+\b/.exec(text)?.[0];
-            console.log(JSON.stringify(version?{code:'BROWSER_VERSION',version}:{code:'BROWSER_VERSION_UNAVAILABLE'}));
-            if(!version)process.exitCode=1;
-          });
-          JS
       - name: Observe paused targets (no forwarding, no site navigation)
         env:
           CHROME_PATH: /opt/google/chrome/chrome

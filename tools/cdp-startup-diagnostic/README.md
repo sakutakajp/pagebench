@@ -14,7 +14,7 @@ loopback全拒否proxyを使います。proxyはHTTP403、CONNECT/Upgrade切断�
 DNS lookup・外向きsocket・許可host・enable APIを持ちません。CDP WebSocketも自分のChromeが
 生成したportとbrowser pathを検証したloopback接続だけです。
 
-Chrome開始からproxyは閉鎖したまま。CDPは固定Target観測コマンドとabout:blankタブ作成1回、照合済みpageだけへのPage初期化2コマンドです。
+Chrome開始からproxyは閉鎖したまま。CDPはrootだけのBrowser.getVersion、固定Target観測コマンドとabout:blankタブ作成1回、照合済みpageだけへのPage初期化2コマンドです。
 root/child autoattachはwaitForDebuggerOnStart=trueで、Runtime再開・Page.navigate・Fetch転送等は
 コマンドallowlistにありません。tab/pageも再開しません。停止隔離BROWSER_UI以外の既知補助target、未知/欠落/空/非文字列、
 停止していないtarget、制御喪失・上限ではChromeを終了します。未知をfilterから除いて放置しません。
@@ -24,11 +24,11 @@ target_resumesだけ。任意のtype文字列、URL/title/target ID/session ID�
 既知type表は公式ソースにある名前の診断分類で、実行許可ではありません。Chrome157の全typeを
 網羅する保証はなく、未掲載はTYPE_UNKNOWN_STRINGで停止します。
 
-終了コード0は「停止中のpageを観測し、cleanupも完了した」のみで、実測・表示・機能・全fixture成功ではありません。
+終了コード0は「同じChromeの版が確定し、停止中のpageを初期化し、cleanupも完了した」のみで、実測・表示・機能・全fixture成功ではありません。
 それ以外は1。生CDPやprofileを保存せず、profileは終了時削除。入力256KiB、イベント48件、
 Chrome起動10秒、WebSocket3秒、各CDP command2秒の上限です。
 
-ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計18試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
+ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計22試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
 sequence=[]で停止。実Chromeでのtarget互換性は未検証です。target_resumes=0はこの診断が再開commandを
 送らない意味で、DevTools接続前のChrome内部処理を取り消せるという意味ではありません。
 
@@ -95,3 +95,22 @@ browser_ui_quarantinedは固定型の状態として出します。UIを止め�
 - https://chromium.googlesource.com/chromium/src/+/a24f112f7dcefa1402ba08df5f325679679e44fc
 - https://chromium.googlesource.com/chromium/src/+/327d939af510cc32a34b28cfa3a6fa82fe5d7418
 - https://chromium.googlesource.com/chromium/src/+/2ebb13842d07f99f830e14f5694495f98a442fb9/chrome/browser/ui/webui_browser/webui_browser_browsertest.cc
+
+## 同じChromeからの版取得（ローカル修正、未公開）
+
+独立したChrome `--version`プロセスは起動しません。全拒否proxyの下で起動した診断用Chromeに対し、
+rootの停止autoattachを確認した後、同じCDP接続のBrowser.getVersionを1回だけ呼びます。
+productが `Chrome/数字.数字.数字.数字` または `HeadlessChrome/数字.数字.数字.数字` と完全一致する場合だけ、
+数字4区分をbrowser_version.versionへ出します。各区分は1〜10桁。product原文やuserAgent/revision等は出しません。
+
+browser_version.codeはVERSION_VERIFIED / VERSION_NOT_ATTEMPTED / VERSION_MISSING /
+VERSION_INVALID / VERSION_TIMEOUT / VERSION_COMMAND_FAILED / VERSION_CONTROL_LOSTのみ。
+欠損・不正・2秒タイムアウト・当該コマンドエラーは版をnullとし、閉鎖proxyのまま対象観測は続けます。
+保護喪失・制御喪失は従来どおり停止します。タイムアウト後の再送はありません。
+
+観測code/sequence、browser_version、cleanupを分離し、観測と版はcleanup前にimmutableへ確定。
+版取得だけが失敗しても初期化の観測や終了処理の失敗を上書きしません。status=successには
+VERSION_VERIFIED・BLANK_PAGE_PROTOCOL_READY・page_protocol_initialized=true・cleanup完了のすべてが必要です。
+BROWSER_UIもpageも再開せず、外向き転送は0です。この版変更の実Actions上の解消はまだ未確認です。
+
+根拠: https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-getVersion

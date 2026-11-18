@@ -23,4 +23,10 @@ export async function cleanupDiagnostic(r,hooks={}){
  else await attempt('PROFILE_DELETE',hooks.removeProfile||(()=>r.removeProfile(r.profile)),'PROFILE_DELETED','PROFILE_DELETE_FAILED');
  const failed=stages.some(s=>/FAILED|TIMEOUT|UNCONFIRMED/.test(s.code));return Object.freeze({status:failed?'failed':'complete',stages:Object.freeze(stages.map(s=>Object.freeze(s)))});
 }
-export function finishObservation(observation,cleanup){return Object.freeze({...observation,status:(observation.code==='PAUSED_PAGE_OBSERVED'||observation.code==='BLANK_PAGE_PROTOCOL_READY'&&observation.page_protocol_initialized===true)&&cleanup.status==='complete'?'success':'failed',cleanup});}
+const VERSION_CODES=new Set(['VERSION_NOT_ATTEMPTED','VERSION_VERIFIED','VERSION_MISSING','VERSION_INVALID','VERSION_TIMEOUT','VERSION_COMMAND_FAILED','VERSION_CONTROL_LOST']);
+export function freezeVersion(raw){
+ const valid=raw?.code==='VERSION_VERIFIED'&&typeof raw.version==='string'&&/^\d{1,10}\.\d{1,10}\.\d{1,10}\.\d{1,10}$/.test(raw.version);
+ const code=valid?'VERSION_VERIFIED':VERSION_CODES.has(raw?.code)&&raw.code!=='VERSION_VERIFIED'?raw.code:'VERSION_INVALID';
+ return Object.freeze({code,version:valid?raw.version:null});
+}
+export function finishObservation(observation,cleanup,version){const browser_version=freezeVersion(version||{code:'VERSION_NOT_ATTEMPTED'});return Object.freeze({...observation,browser_version,status:observation.code==='BLANK_PAGE_PROTOCOL_READY'&&observation.page_protocol_initialized===true&&browser_version.code==='VERSION_VERIFIED'&&cleanup.status==='complete'?'success':'failed',cleanup});}
