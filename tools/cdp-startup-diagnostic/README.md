@@ -341,3 +341,5 @@ font-compare.mjsは実測経路と独立した診断です。既存ガードの�
 `observed` は比較データを取得した意味で、Font読込みの合格/測定成功ではありません。各caseのstatusを見てください。
 Chromeエラーの固定コードはChromium公式 net/base/net_error_list.h の既知値だけを列挙します。
 https://raw.githubusercontent.com/chromium/chromium/main/net/base/net_error_list.h
+Response段階の追加対照はFontだけとDocumentだけに分けます（外部転送不能の独立診断のみ）。
+前6条件のHTML/フォントは同一です。resourceType filterは実測ガードには適用せず、未知要求の許可も追加しません。
