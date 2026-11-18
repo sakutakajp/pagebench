@@ -69,6 +69,8 @@ export class FixtureGateway extends Gateway{
  send(raw){if(this.stopping)return;
   try{const m=JSON.parse(raw),p=m.params||{},s=this.sessions.get(m.sessionId);this.lastClientCommand=CLIENT_LABELS.has(m.method)?m.method:'OTHER';
    if(m.sessionId&&(!s?.ready||s.internalUI)){this.fail('UNGUARDED_SESSION_COMMAND');return;}
+   if(['Network.setCookie','Network.setCookies','Storage.setCookies'].includes(m.method)){this.fail('AUTH_STATE_MUTATION');return;}
+   if(m.method==='Network.setExtraHTTPHeaders'){const headers=Object.entries(p.headers||{});const kept=headers.filter(([name])=>!/^(cookie|authorization|proxy-authorization|x-api-key|x-goog-api-key|referer)$/i.test(name));this.stats.sanitized_extra_headers=(this.stats.sanitized_extra_headers||0)+headers.length-kept.length;m.params={...p,headers:Object.fromEntries(kept)};}
    if(m.method.startsWith('Security.')&&!['Security.enable','Security.disable','Security.getCertificate'].includes(m.method)||m.method==='Network.disable'&&m.sessionId===this.primary){this.fail('PROTECTION_MUTATION');return;}
    if(['Fetch.disable','Fetch.enable','Fetch.continueRequest','Fetch.continueResponse','Fetch.fulfillRequest','Fetch.failRequest','Fetch.continueWithAuth','Security.setIgnoreCertificateErrors'].includes(m.method)){this.fail('PROTECTION_MUTATION');return;}
    if(m.method==='Network.loadNetworkResource'){this.forward({id:m.id,sessionId:m.sessionId,error:{code:-32000,message:'Direct fetch disabled'}});return;}

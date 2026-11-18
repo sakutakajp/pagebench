@@ -1,3 +1,4 @@
+import{initializeAuthlessProfile}from'./authless-profile.mjs';
 // No live mode. Every HTTP request is fulfilled from fixed strings or aborted.
 import{safetyFingerprint,workflowSha}from'./proof.mjs';
 import{FixtureGateway,FIXTURE_URL}from'./fixture-gateway.mjs';import{captureParams}from'./scoped-capture.mjs';
@@ -11,7 +12,7 @@ export async function openGuarded(GatewayClass,proxyFactory){
  let phase='BINARY',proc,profile,proxy,wire,gateway,browser,tracked,cleaned=false,cleanupResult;let sandbox=false,devtools_incomplete_reads=0;
  const cleanup=async()=>{if(cleaned)return cleanupResult;cleaned=true;gateway?.beginCleanup?.();proxy?.disable?.();gateway?.dispose();browser?.disconnect();cleanupResult=await cleanupDiagnostic({wire,proc,tracked,proxy,profile,removeProfile:p=>rm(p,{recursive:true,force:true})});return cleanupResult;};
  try{
-  const executable=process.env.CHROME_PATH||'/opt/google/chrome/chrome';await access(executable,constants.X_OK);profile=await mkdtemp(join(tmpdir(),'pagebench-isolated-lh-'));phase='PROXY_SETUP';proxy=await proxyFactory();phase='CHROME_START';let failed=false;
+  const executable=process.env.CHROME_PATH||'/opt/google/chrome/chrome';await access(executable,constants.X_OK);profile=await mkdtemp(join(tmpdir(),'pagebench-isolated-lh-'));phase='AUTHLESS_PROFILE';await initializeAuthlessProfile(profile);phase='PROXY_SETUP';proxy=await proxyFactory();phase='CHROME_START';let failed=false;
   proc=spawn(executable,['--headless=new','--no-startup-window','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-extensions-with-background-pages','--remote-debugging-port=0','--user-data-dir='+profile,'--proxy-server='+proxy.url,'--proxy-bypass-list=<-loopback>','--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],{stdio:['ignore','ignore','pipe']});tracked=trackProcess(proc);proc.on('error',()=>failed=true);let remaining=65536;proc.stderr.on('data',chunk=>{if(remaining<=0)return;const text=chunk.subarray(0,remaining).toString();remaining-=chunk.length;sandbox ||= /SUID sandbox helper|No usable sandbox|Failed to move to new namespace/.test(text);});
   const start=await waitForDevtools(profile,proc,()=>failed);devtools_incomplete_reads=start.incomplete_reads||0;if(!start.address){phase=sandbox?'CHROME_SANDBOX_FAILED':start.code;throw Error('START_FAILED');}
   phase='CDP_CONNECT';wire=new WebSocket(start.address);await bounded(new Promise((resolve,reject)=>{wire.onopen=resolve;wire.onerror=()=>reject(Error('CDP_CONNECT_FAILED'));}),3000);

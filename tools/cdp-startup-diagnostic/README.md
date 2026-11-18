@@ -380,3 +380,12 @@ expected=0はNO_FONTS_OBSERVEDとして仕様上許容できても、Font正常�
 Fontあり模擬Lighthouseはminimum_required=1とVERIFIED_FONTSを必須とします。
 cleanupで分離できるのは完了済みFontへの既知キャンセル通知だけです。新規/説明不能なFontイベントが届けばsealも無効。
 確定境界は監視sessionのprotocol fenceであり、将来のページ動作を無期限に保証するものではありません。
+
+合成資格情報の実Chrome試験で、要求ヘッダーの除外だけでは配信側到達を防げないケースを検出したため、
+Chrome起動前の新規private profileでcookiesのcontent settingをBLOCK(2)にします。
+Network.setExtraHTTPHeadersもChromeへ渡す前にCookie/Authorization/APIキー類/Refererを除外し、
+clientからのcookie設定は停止します。各Requestでの除外も維持。テストだけがown CDPで合成cookieを投入し到達0を確認します。
+既存profile、OS、グローバルChrome設定、サイト/Cloudflare設定は変更せず、終了確認後にprofileを削除。
+https://raw.githubusercontent.com/chromium/chromium/main/components/content_settings/core/browser/website_settings_info.cc
+https://raw.githubusercontent.com/chromium/chromium/main/components/content_settings/core/browser/content_settings_registry.cc
+https://raw.githubusercontent.com/chromium/chromium/main/components/content_settings/core/common/content_settings.h
