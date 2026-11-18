@@ -145,3 +145,14 @@ unpaused_uiはメモリ内のtarget/session照合だけで、同一session・同
 親kindだけを記録し、raw IDやURL/titleは出しません。どの分類でもTARGET_NOT_PAUSEDで終了し、
 既知UIの重複でも無視・再開する例外はまだありません。停止中の既存sessionがあっても、別sessionで
 waitingForDebugger=falseという通知だけから対象全体の停止保証を推測しません。
+
+## コマンド別の未応答診断
+
+commands.entriesは固定コマンド名・対象kind・SENT/RESPONDED/ERROR/TIMEOUT/CANCELLEDを順番に記録します。
+command_noは診断内の連番で、Chromeのtarget/session IDではありません。送信params・応答本文・URL・
+raw errorは記録しません。commands.timeouts.pendingはタイムアウト時点で同時に未応答だった操作です。
+Chrome内部の依存関係やdeadlockをこの一覧だけで断定しません。
+
+2秒期限、送信コマンド/引数、保護条件、再開禁止は不変。最初の停止理由とコマンド記録をcleanup前に
+immutableへ確定し、終了に伴う待機中止はTIMEOUTと区別します。最大64コマンド・128イベントで有界化。
+同じkindへの並行要求も連番で区別し、個々のsession IDを外に出しません。

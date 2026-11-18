@@ -1,5 +1,6 @@
 // Independent observation only. No Puppeteer/Lighthouse/measurement imports or forwarding path.
 import http from 'node:http';
+import{CommandLog,freezeCommands}from'./commands.mjs';
 import{trackProcess,cleanupDiagnostic,finishObservation,freezeVersion}from'./cleanup.mjs';
 import {spawn} from 'node:child_process';
 import {access,mkdtemp,readFile,rm} from 'node:fs/promises';
@@ -29,7 +30,7 @@ export function freezeObservation(raw){
   if(!EVENT_CODES.has(entry?.event)||(entry.kind!==undefined&&!SAFE_KINDS.has(entry.kind))){code='OBSERVATION_INVALID';continue;}
   sequence.push(Object.freeze({n:sequence.length+1,event:entry.event,...(entry.kind?{kind:entry.kind}:{})}));
  }
- return Object.freeze({unpaused_ui:freezeUnpausedUI(raw?.unpaused_ui),response_id_bound:raw?.response_id_bound===true,candidate_tabs:Number.isInteger(raw?.candidate_tabs)&&raw.candidate_tabs>=0&&raw.candidate_tabs<=3?raw.candidate_tabs:0,quarantined_tabs:Number.isInteger(raw?.quarantined_tabs)&&raw.quarantined_tabs>=0&&raw.quarantined_tabs<=3?raw.quarantined_tabs:0,schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
+ return Object.freeze({commands:freezeCommands(raw?.commands),unpaused_ui:freezeUnpausedUI(raw?.unpaused_ui),response_id_bound:raw?.response_id_bound===true,candidate_tabs:Number.isInteger(raw?.candidate_tabs)&&raw.candidate_tabs>=0&&raw.candidate_tabs<=3?raw.candidate_tabs:0,quarantined_tabs:Number.isInteger(raw?.quarantined_tabs)&&raw.quarantined_tabs>=0&&raw.quarantined_tabs<=3?raw.quarantined_tabs:0,schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
 }
 export function endpoint(text){
  const m=typeof text==='string'&&text.length<=512&&/^(\d{1,5})\n(\/devtools\/browser\/[a-f0-9-]{36})\n?$/i.exec(text);
@@ -54,12 +55,12 @@ export async function denyProxy(){
  return {url:'http://127.0.0.1:'+server.address().port,close:async()=>{for(const s of sockets)s.destroy();await new Promise(r=>server.close(r));}};
 }
 export class Observer{
- constructor(wire,terminate){this.wire=wire;this.terminate=terminate;this.pending=new Map();this.serial=0;this.sequence=[];this.stopped=false;this.code='OBSERVING';this.sessions=new Map();this.tasks=new Set();this.createIssued=false;this.createdTab=null;this.tabSession=null;this.pageSession=null;this.uiCount=0;this.uiSeen=0;this.initializing=false;this.pageInitialized=false;this.targetRelation='NONE';this.tabRejection='NONE';this.tabCreateReply='NOT_REJECTED';this.browserVersion=freezeVersion({code:'VERSION_NOT_ATTEMPTED'});
+ constructor(wire,terminate){this.wire=wire;this.terminate=terminate;this.pending=new Map();this.serial=0;this.commandLog=new CommandLog();this.sequence=[];this.stopped=false;this.code='OBSERVING';this.sessions=new Map();this.tasks=new Set();this.createIssued=false;this.createdTab=null;this.tabSession=null;this.pageSession=null;this.uiCount=0;this.uiSeen=0;this.initializing=false;this.pageInitialized=false;this.targetRelation='NONE';this.tabRejection='NONE';this.tabCreateReply='NOT_REJECTED';this.browserVersion=freezeVersion({code:'VERSION_NOT_ATTEMPTED'});
   wire.onmessage=e=>{const task=this.receive(typeof e==='string'?e:e.data);this.tasks.add(task);task.finally(()=>this.tasks.delete(task));};
   wire.onclose=()=>this.stop('CONTROL_LOST');wire.onerror=()=>this.stop('CONTROL_LOST');
  }
  record(event,kind){if(this.stopped)return;if(this.sequence.length>=48){this.stop('EVENT_LIMIT');return;}this.sequence.push({n:this.sequence.length+1,event,...(kind?{kind}:{})});}
- stop(code){if(this.stopped)return;this.stopped=true;this.code=code;this.snapshot=freezeObservation(this.result());try{this.terminate();}catch{this.terminationFailed=true;}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('DIAGNOSTIC_STOPPED'));}this.pending.clear();}
+ stop(code){if(this.stopped)return;this.stopped=true;this.code=code;for(const p of this.pending.values())if(!p.timedOut)this.commandLog.event(p.trace,'CANCELLED');this.snapshot=freezeObservation(this.result());try{this.terminate();}catch{this.terminationFailed=true;}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('DIAGNOSTIC_STOPPED'));}this.pending.clear();}
  lineage(){
   if(!this.pageSession||!this.tabSession||!this.createdTab)return false;
   const tab=this.sessions.get(this.tabSession);if(tab.target!==this.createdTab)return false;
@@ -72,7 +73,13 @@ export class Observer{
   if((!pageQuery&&!commandAllowed(method,params,!!sessionId))||sessionId!==undefined&&(typeof sessionId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId))){this.stop('COMMAND_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}
   if(this.stopped)return Promise.reject(Error('DIAGNOSTIC_STOPPED'));
   if(method==='Target.createTarget'){if(this.createIssued){this.stop('EXTRA_TAB_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}this.createIssued=true;}
-  return new Promise((resolve,reject)=>{const id=++this.serial;const versionQuery=method==='Browser.getVersion';const timer=setTimeout(()=>{if(versionQuery){this.pending.delete(id);reject(Error('VERSION_TIMEOUT'));}else{this.stop('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));}},2000);this.pending.set(id,{resolve,reject,timer,versionQuery});try{this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));}catch{this.stop('CONTROL_LOST');}});
+  const scope=sessionId?(['TAB','BROWSER_UI','PAGE'].includes(this.sessions.get(sessionId)?.kind)?this.sessions.get(sessionId).kind:'UNCLASSIFIED_SESSION'):'BROWSER';
+  const trace=this.commandLog.sent(method,scope);if(!trace){this.stop('EVENT_LIMIT');return Promise.reject(Error('EVENT_LIMIT'));}
+  return new Promise((resolve,reject)=>{const id=++this.serial;const versionQuery=method==='Browser.getVersion';const timer=setTimeout(()=>{
+   const pending=this.pending.get(id);if(!pending)return;
+   pending.timedOut=true;this.commandLog.timeout(trace,[...this.pending.values()].map(p=>p.trace));
+   if(versionQuery){this.pending.delete(id);reject(Error('VERSION_TIMEOUT'));}else{this.stop('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));}
+  },2000);this.pending.set(id,{resolve,reject,timer,versionQuery,trace,timedOut:false});try{this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));}catch{this.stop('CONTROL_LOST');}});
  }
  async initializePage(){
   if(this.initializing||this.stopped||!this.lineage())return;
@@ -121,7 +128,7 @@ export class Observer{
   try{
    if(typeof raw!=='string'||raw.length>262144){this.stop('INPUT_LIMIT');return;}
    const m=JSON.parse(raw);
-   if(this.pending.has(m.id)){const p=this.pending.get(m.id);this.pending.delete(m.id);clearTimeout(p.timer);if(m.error){p.reject(Error(p.versionQuery?'VERSION_COMMAND_FAILED':'CDP_COMMAND_FAILED'));if(!p.versionQuery)this.stop('CDP_COMMAND_FAILED');}else p.resolve(m.result||{});return;}
+   if(this.pending.has(m.id)){const p=this.pending.get(m.id);this.pending.delete(m.id);clearTimeout(p.timer);this.commandLog.event(p.trace,m.error?'ERROR':'RESPONDED');if(m.error){p.reject(Error(p.versionQuery?'VERSION_COMMAND_FAILED':'CDP_COMMAND_FAILED'));if(!p.versionQuery)this.stop('CDP_COMMAND_FAILED');}else p.resolve(m.result||{});return;}
    if(m.method==='Target.detachedFromTarget'&&this.sessions.has(m.params?.sessionId)||m.method==='Inspector.detached'||m.method==='Inspector.targetCrashed'){this.stop('PROTECTION_LOST');return;}
    if(m.method==='Target.targetDestroyed'&&[...this.sessions.values()].some(s=>s.target===m.params?.targetId)){this.stop('PROTECTION_LOST');return;}
    const labels={'Target.targetCreated':'CREATED','Target.targetInfoChanged':'INFO_CHANGED','Target.attachedToTarget':m.params?.waitingForDebugger?'ATTACHED_PAUSED':'ATTACHED_NOT_PAUSED'};
@@ -161,7 +168,7 @@ export class Observer{
   }catch{if(!this.stopped)this.stop('PROTOCOL_OR_CAPTURE_FAILED');}
   return this.result();
  }
- result(){return this.snapshot||{schema:2,kind:'isolated-cdp-startup-observation',code:this.code,sequence:this.sequence,site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:this.uiCount,page_protocol_initialized:this.pageInitialized,target_relation:this.targetRelation,tab_rejection:this.tabRejection,tab_create_reply:this.tabCreateReply};}
+ result(){return this.snapshot||{commands:this.commandLog.snapshot(),schema:2,kind:'isolated-cdp-startup-observation',code:this.code,sequence:this.sequence,site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:this.uiCount,page_protocol_initialized:this.pageInitialized,target_relation:this.targetRelation,tab_rejection:this.tabRejection,tab_create_reply:this.tabCreateReply};}
  dispose(){if(!this.stopped)this.stop('CLEANUP');this.wire.close();}
 }
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
