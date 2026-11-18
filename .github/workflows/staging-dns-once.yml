@@ -1,3 +1,4 @@
+# Owner-approved single fresh static audit; diagnostic behavior unchanged.
 name: Staging static audit once
 on:
   push:
