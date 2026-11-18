@@ -1,0 +1,51 @@
+name: Isolated CDP startup observation (once)
+on:
+  push:
+    branches:
+      - diag/cdp-isolated-once-20261118-b651ddd
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-cdp-isolated-once-20261118-b651ddd
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Synthetic and loopback-only tests
+        run: |
+          node --check tools/cdp-startup-diagnostic/diagnostic.mjs
+          node --test tools/cdp-startup-diagnostic/diagnostic.test.mjs
+      - name: Fixed numeric browser version
+        run: |
+          node --input-type=module <<'JS'
+          import {execFile} from 'node:child_process';
+          execFile('/opt/google/chrome/chrome',['--version'],{encoding:'utf8',timeout:3000,maxBuffer:4096},(error,text)=>{
+            const version=!error&&/\b\d+\.\d+\.\d+\.\d+\b/.exec(text)?.[0];
+            console.log(JSON.stringify(version?{code:'BROWSER_VERSION',version}:{code:'BROWSER_VERSION_UNAVAILABLE'}));
+            if(!version)process.exitCode=1;
+          });
+          JS
+      - name: Observe paused targets (no forwarding, no site navigation)
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import {main} from './tools/cdp-startup-diagnostic/diagnostic.mjs';
+          import {appendFile} from 'node:fs/promises';
+          let result;
+          try {result=await main();}
+          catch {result={kind:'isolated-cdp-startup-observation',code:'CLEANUP_FAILED',sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
+          const text=JSON.stringify(result);
+          console.log(text);
+          await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n');
+          if(result.code!=='PAUSED_PAGE_OBSERVED')process.exitCode=1;
+          JS

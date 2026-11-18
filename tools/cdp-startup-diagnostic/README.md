@@ -1,4 +1,4 @@
-# 隔離CDP起動観測（ローカル準備）
+# 隔離CDP起動観測（診断専用branch）
 
 実計測経路から独立したNode標準ライブラリだけの診断です。Puppeteer/Lighthouse/既存runnerを
 importしません。staging/image URL、サイトURL入力、サイト遷移、転送を有効化する処理はありません。
@@ -34,8 +34,8 @@ sequence=[]で停止。実Chromeでのtarget互換性は未検証です。target
 
 ## 実ランナーでユーザーの手動起動に頼らず検証する場合
 
-今回はworkflowを追加/変更していません。次の実行には、コードの公開と診断専用branch限定の
-自動CI起動について別途の承認が必要です。現行の実計測workflowを再起動する手順ではありません。
+専用branch `diag/cdp-isolated-once-20261118-b651ddd` のpushだけを対象にする新規workflowを用意しました。
+承認された1回のpushで自動診断します。既存workflowとmainは変更せず、手動再実行/dispatchは行いません。
 
 既存の正規git書込みを用い、専用branchへの1回のpushだけをトリガーにする隔離jobが候補です。
 必要なのは該当repoへのcontents/workflows書込み権限と、GitHub Actionsが利用可能なこと。
