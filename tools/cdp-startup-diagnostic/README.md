@@ -26,7 +26,7 @@ target_resumesだけ。任意のtype文字列、URL/title/target ID/session ID�
 
 終了コード0は「同じChromeの版が確定し、停止中のpageを初期化し、cleanupも完了した」のみで、実測・表示・機能・全fixture成功ではありません。
 それ以外は1。生CDPやprofileを保存せず、profileは終了時削除。入力256KiB、イベント48件、
-Chrome起動10秒、WebSocket3秒、各CDP command2秒の上限です。
+Chrome起動30秒、WebSocket3秒、各CDP command2秒の上限です。
 
 ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計22試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
 sequence=[]で停止。実Chromeでのtarget互換性は未検証です。target_resumes=0はこの診断が再開commandを
@@ -122,3 +122,8 @@ BROWSER_UIもpageも再開せず、外向き転送は0です。この版変更�
 tab_rejectionは追加root/内部UI配下等、tab_create_replyは作成応答受領前後だけを出します。
 raw ID・URL・titleは出しません。関係の記録だけを追加し、転送コマンド・停止条件は不変です。
 合成CDPでは元コードとの6ケース差分比較で送信コマンドと停止結果が完全一致しています。
+
+直前の関係分類probeはDevToolsファイル待ち10秒で終了し、target検証に到達しませんでした。
+初回起動の待機不足という別仮説を確認するため、全拒否状態の起動待ちだけを30秒までとし、
+ENOENTと読み取り不可・不正ファイル・Chrome終了を区別します。起動コマンド・TLS/sandbox・
+外向き転送禁止・CDP/対象の停止条件は変えていません。仮説は実Chromeの次の結果で判断します。

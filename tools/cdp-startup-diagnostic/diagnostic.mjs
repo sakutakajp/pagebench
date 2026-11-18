@@ -12,7 +12,7 @@ export function kindOf(info){
  if(info.type==='')return 'TYPE_EMPTY';
  return Object.hasOwn(KINDS,info.type)?KINDS[info.type]:'TYPE_UNKNOWN_STRING';
 }
-const OBSERVATION_CODES=new Set(['OBSERVING','EVENT_LIMIT','CONTROL_LOST','COMMAND_REJECTED','CDP_TIMEOUT','INPUT_LIMIT','CDP_COMMAND_FAILED','TARGET_TYPE_UNCLASSIFIED','TARGET_NOT_PAUSED','AUXILIARY_TARGET_STOP','INVALID_SESSION','PROTOCOL_OR_CAPTURE_FAILED','PAUSED_PAGE_OBSERVED','NO_PAUSED_PAGE','CLEANUP','BINARY_UNAVAILABLE','CHROME_START_FAILED','CHROME_SANDBOX_FAILED','DEVTOOLS_FILE_INVALID','DEVTOOLS_FILE_TIMEOUT','DEVTOOLS_WS_FAILED','OBSERVATION_INVALID','BLANK_PAGE_PROTOCOL_READY','EXTRA_TAB_REJECTED','EXTRA_PAGE_REJECTED','PAGE_LINEAGE_REJECTED','TAB_BINDING_FAILED','BROWSER_UI_LIMIT','PROTECTION_LOST','BLANK_FRAME_MISMATCH','PAGE_PROTOCOL_FAILED','PAGE_NOT_OBSERVED']);
+const OBSERVATION_CODES=new Set(['OBSERVING','EVENT_LIMIT','CONTROL_LOST','COMMAND_REJECTED','CDP_TIMEOUT','INPUT_LIMIT','CDP_COMMAND_FAILED','TARGET_TYPE_UNCLASSIFIED','TARGET_NOT_PAUSED','AUXILIARY_TARGET_STOP','INVALID_SESSION','PROTOCOL_OR_CAPTURE_FAILED','PAUSED_PAGE_OBSERVED','NO_PAUSED_PAGE','CLEANUP','BINARY_UNAVAILABLE','CHROME_START_FAILED','CHROME_SANDBOX_FAILED','DEVTOOLS_FILE_INVALID','DEVTOOLS_FILE_TIMEOUT','DEVTOOLS_FILE_UNREADABLE','DEVTOOLS_WS_FAILED','OBSERVATION_INVALID','BLANK_PAGE_PROTOCOL_READY','EXTRA_TAB_REJECTED','EXTRA_PAGE_REJECTED','PAGE_LINEAGE_REJECTED','TAB_BINDING_FAILED','BROWSER_UI_LIMIT','PROTECTION_LOST','BLANK_FRAME_MISMATCH','PAGE_PROTOCOL_FAILED','PAGE_NOT_OBSERVED']);
 const EVENT_CODES=new Set(['CREATED','INFO_CHANGED','ATTACHED_PAUSED','ATTACHED_NOT_PAUSED','AUTOATTACH_READY','SNAPSHOT','BLANK_CREATE_REQUEST','BROWSER_UI_QUARANTINED','PAGE_PROTOCOL_START','PAGE_PROTOCOL_READY','TAB_BOUND']);
 const SAFE_KINDS=new Set([...Object.values(KINDS),'TYPE_MISSING','TYPE_NONSTRING','TYPE_EMPTY','TYPE_UNKNOWN_STRING']);
 const TARGET_RELATIONS=new Set(['NONE','SAME_SESSION','SAME_TARGET_OTHER_SESSION','DISTINCT_TARGET_ROOT','DISTINCT_TARGET_UI_CHILD','DISTINCT_TARGET_OTHER_PARENT']);
@@ -159,6 +159,17 @@ export class Observer{
  dispose(){if(!this.stopped)this.stop('CLEANUP');this.wire.close();}
 }
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
+// Bounded startup observation; no separate Chrome process or raw error output.
+export async function waitForDevtools(profile,proc,spawnFailed,hooks={}){
+ const read=hooks.read||(()=>readFile(join(profile,'DevToolsActivePort'),'utf8'));
+ const delay=hooks.delay||pause;
+ for(let i=0;i<300;i++){
+  if(spawnFailed()||proc.exitCode!==null||proc.signalCode!==null)return {code:'CHROME_START_FAILED'};
+  let text;try{text=await read();}catch(error){if(error.code!=='ENOENT')return {code:'DEVTOOLS_FILE_UNREADABLE'};await delay(100);continue;}
+  try{return {code:'DEVTOOLS_READY',address:endpoint(text)};}catch{return {code:'DEVTOOLS_FILE_INVALID'};}
+ }
+ return {code:'DEVTOOLS_FILE_TIMEOUT'};
+}
 export async function main(){
  let profile,proxy,proc,observer,wire,tracked,observation;let code='BINARY_UNAVAILABLE';let sandbox=false;let spawnedError=false;
  const kill=()=>proc?.kill('SIGKILL');
@@ -168,13 +179,9 @@ export async function main(){
   proc=spawn(executable,['--headless=new','--no-startup-window','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-extensions-with-background-pages','--remote-debugging-port=0','--user-data-dir='+profile,'--proxy-server='+proxy.url,'--proxy-bypass-list=<-loopback>','--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],{stdio:['ignore','ignore','pipe']});
   tracked=trackProcess(proc);
   proc.on('error',()=>{spawnedError=true;});let left=65536,tail='';proc.stderr.on('data',chunk=>{if(left<=0)return;const part=chunk.subarray(0,left);left-=part.length;const text=tail+part.toString('utf8');sandbox ||= /SUID sandbox helper|No usable sandbox|Failed to move to new namespace/i.test(text);tail=text.slice(-256);});
-  let address;
-  for(let i=0;i<100;i++){
-   if(spawnedError||proc.exitCode!==null||proc.signalCode!==null)throw Error('START_FAILED');
-   let text;try{text=await readFile(join(profile,'DevToolsActivePort'),'utf8');}catch{await pause(100);continue;}
-   code='DEVTOOLS_FILE_INVALID';address=endpoint(text);break;
-  }
-  if(!address){code='DEVTOOLS_FILE_TIMEOUT';throw Error('TIMEOUT');}
+  const startup=await waitForDevtools(profile,proc,()=>spawnedError);
+  code=startup.code;const address=startup.address;
+  if(!address)throw Error('START_FAILED');
   code='DEVTOOLS_WS_FAILED';wire=new WebSocket(address);
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{wire.close();reject(Error('TIMEOUT'));},3000);wire.onopen=()=>{clearTimeout(timer);resolve();};wire.onerror=()=>{clearTimeout(timer);reject(Error('CONNECTION_FAILED'));};});
   observer=new Observer(wire,kill);observation=await observer.collect();
