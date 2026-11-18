@@ -1,4 +1,4 @@
-import{FontMonitor,requestAndNonFontResponses}from'./font-monitor.mjs';
+import{FontMonitor,requestAndNonFontResponses,NON_FONT_RESPONSE_TYPES}from'./font-monitor.mjs';
 import{NetworkFailureJoin}from'./network-failure.mjs';
 import{ResponseTrace}from'./response-trace.mjs';
 import{FixtureGateway}from'./fixture-gateway.mjs';import{allowed,headerSafe,extractIcons,TARGET}from'../lighthouse-once/guard.mjs';
@@ -44,6 +44,7 @@ export class StagingGateway extends FixtureGateway{
   const request=e.request||{},headers=request.headers||{};
   if(/prefetch/i.test(headers['sec-purpose']||headers['Sec-Purpose']||headers.Purpose||headers.purpose||'')){this.stats.prefetch_blocked++;await abort();if(this.stats.prefetch_blocked>256)this.fail('PREFETCH_LIMIT');return;}
   if(request.postData||!allowed(request,e.resourceType,this.icons)){this.block(denyCategory(request,e.resourceType));await abort();if(e.resourceType==='Document')this.fail('NAVIGATION_SCOPE');return;}
+  if(e.resourceType!=='Font'&&!NON_FONT_RESPONSE_TYPES.includes(e.resourceType)){this.block('UNSUPPORTED_RESPONSE_GUARD_RESOURCE');await abort();this.fail('UNSUPPORTED_RESPONSE_GUARD_RESOURCE');return;}
   if(e.resourceType==='Document'&&(request.url!==TARGET||request.method!=='GET'||e.frameId!==this.sessions.get(this.primary)?.frame||++this.stats.live_documents>1)){await abort();this.fail('NAVIGATION_SCOPE');return;}
   if(++this.stats.allowed>120){await abort();this.fail('REQUEST_LIMIT');return;}
   this.liveRequestMeta.set(e.requestId,{type:e.resourceType,networkId:e.networkId,session:id});this.networkFailure.bind(id,e);

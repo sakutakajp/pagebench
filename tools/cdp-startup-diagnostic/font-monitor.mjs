@@ -15,4 +15,6 @@ export class FontMonitor{
  }
  snapshot(){let expected=0,verified=0,unbound=0,incomplete=0;for(const e of this.entries.values()){if(!e.expected){unbound++;continue;}expected++;if(e.start&&e.response&&e.finished&&!e.failed)verified++;else incomplete++;}return{adoptable:!this.fatal&&!unbound&&!incomplete,expected,verified,unbound,incomplete,fatal:this.fatal,policy:'PASSIVE_AFTER_DELIVERY_NOT_RESPONSE_ISOLATION'};}
 }
-export function requestAndNonFontResponses(){return[{urlPattern:'*',requestStage:'Request'},...['Document','Stylesheet','Image','Media','Script','TextTrack','XHR','Fetch','Prefetch','EventSource','WebSocket','Manifest','SignedExchange','Ping','CSPViolationReport','Preflight','FedCM','Other'].map(resourceType=>({urlPattern:'*',resourceType,requestStage:'Response'}))];}
+// FetchHandler accepts fewer filter values than the Network ResourceType enum.
+export const NON_FONT_RESPONSE_TYPES=Object.freeze(['Document','Stylesheet','Image','Media','Script','XHR','Fetch','Other']);
+export function requestAndNonFontResponses(){return[{urlPattern:'*',requestStage:'Request'},...NON_FONT_RESPONSE_TYPES.map(resourceType=>({urlPattern:'*',resourceType,requestStage:'Response'}))];}

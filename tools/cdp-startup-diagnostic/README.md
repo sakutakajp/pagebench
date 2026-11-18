@@ -361,3 +361,8 @@ redirect先の配信到達0、禁止POSTの配信到達0、資格情報ヘッダ
 失敗ケースに0点や仮スコアは付けません。score_adopted:false/performance:nullで記録します。
 生LHR/画像/URL/ID/headers/本文は新しい公開成果物に含めません。旧模擬LHRはrunner内だけで検証します。
 このworkflowはstagingを呼ばず、PSI/キー/D1/main/運用workflow/サイト設定を変更しません。
+FetchHandlerはNetwork.ResourceTypeの全列挙値をフィルターとして受理しません。
+https://raw.githubusercontent.com/chromium/chromium/main/content/browser/devtools/protocol/fetch_handler.cc
+Responseフィルターは、転送対象の対応8型（Document/Stylesheet/Image/Media/Script/XHR/Fetch/Other）に限定。
+TextTrackは応答フィルターで扱えないため、送信前にUNSUPPORTED_RESPONSE_GUARD_RESOURCEで停止・結果不採用にします。
+未知型も従来のRequestポリシーで拒否し、応答防御のない転送は追加しません。Fontだけが受動監視の対象です。
