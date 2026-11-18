@@ -114,3 +114,11 @@ VERSION_VERIFIED・BLANK_PAGE_PROTOCOL_READY・page_protocol_initialized=true・
 BROWSER_UIもpageも再開せず、外向き転送は0です。この版変更の実Actions上の解消はまだ未確認です。
 
 根拠: https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-getVersion
+
+## 直列10回の実Chrome診断
+
+専用workflowはten-trials.mjsで同じmain()を直列10回呼びます。各main()が新しい一時profile・Chrome・
+全拒否proxyを作成し終了します。各回の固定観測code/版/cleanupとelapsed_ms、最後に成功・失敗・未試行件数を
+記録します。ローカル合成結果を実試行へ補充しません。通常の起動・版・初期化失敗は10回まで継続し、
+保護喪失、停止していないtarget、不正入力/コマンド、非ゼロ安全counter、終了未完了などは即時SAFETY_STOP。
+未試行を成功としません。jobは最大8分、同じbranch/attempt1だけで、mainや実計測workflowは変更しません。
