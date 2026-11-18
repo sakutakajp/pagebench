@@ -1,4 +1,4 @@
-name: Isolated font network correlation diagnosis
+name: Independent closed font Fetch comparison
 on:
   push:
     branches:
@@ -56,16 +56,16 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/response-fixture.mjs
-      - name: Font response and network correlation on closed loopback fixture
+      - name: Independent closed font Fetch comparison
         if: steps.capture.outputs.fixture_ready == 'true'
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/font-fixture.mjs
+        run: node tools/cdp-startup-diagnostic/font-compare.mjs
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-font-network-proof
+          name: independent-font-fetch-comparison
           path: |
             scoped-capture-comparison.json
             fixture-lighthouse-status.json
@@ -73,6 +73,6 @@ jobs:
             fixture-lighthouse.lhr.json
             staging-memory-proof.json
             response-path-proof.json
-            font-network-proof.json
+            font-fetch-comparison.json
           retention-days: 3
           if-no-files-found: ignore

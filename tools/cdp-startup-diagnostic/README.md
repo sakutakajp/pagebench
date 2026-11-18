@@ -328,3 +328,16 @@ proxyのCONNECTもloopback宛・宣言済みホスト宛・その他に限定分
 Cookie/Authorization/APIキー類があれば送信せず即停止し、外向き転送機能はありません。実測コードは変更しません。
 これは原因比較用であり、全ケース合格のために旧対照の失敗を除外しません。切断/CORSケースはFont配信先への
 実到達も必須とし、到達前の同種エラーを意図した障害の再現成功とは扱いません。
+
+## 独立FontFace / Fetch介入比較
+
+font-compare.mjsは実測経路と独立した診断です。既存ガードの設定を弱めて使い回すものではありません。
+転送機能のないproxyが固定loopback HTML/フォントGETだけ配信。未知GET/POST/全CONNECT/Upgradeは拒否。
+同じChrome/起動引数・新規profile・同じHTML/フォントで、Fetchなし、Requestだけ、Responseだけ、両段階を比較します。
+補助対照はFontFace(ArrayBuffer)、最後に既存ガード。既存ガード比較にはtarget guard・ヘッダー処理等の差もあります。
+前4つの独立条件はFetchのpause段階だけを変え、ヘッダーを書換えません。独立対照にTLS/sandbox回避はありません。
+最初のFetchなし条件で実Chromeから未許可GET・POST・HTTPS CONNECT・WebSocketの拒否を確認し、
+この境界証明が揃わなければ後続も止めます。ネットワークは転送しません。
+`observed` は比較データを取得した意味で、Font読込みの合格/測定成功ではありません。各caseのstatusを見てください。
+Chromeエラーの固定コードはChromium公式 net/base/net_error_list.h の既知値だけを列挙します。
+https://raw.githubusercontent.com/chromium/chromium/main/net/base/net_error_list.h
