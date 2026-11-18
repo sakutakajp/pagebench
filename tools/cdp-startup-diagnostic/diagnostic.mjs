@@ -174,15 +174,24 @@ export class Observer{
 }
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 // Bounded startup observation; no separate Chrome process or raw error output.
+// A file may be visible before Chrome has finished writing its two lines.
+// Wait only for a strict prefix of the existing format; never accept a partial endpoint.
+export function incompleteDevtools(text){
+ if(typeof text!=='string'||text.length>512)return false;
+ if(text==='')return true;
+ if(/^\d{1,5}$/.test(text))return Number(text)>0&&Number(text)<=65535;
+ const m=/^(\d{1,5})\n(.*)$/.exec(text);if(!m||Number(m[1])<1||Number(m[1])>65535)return false;
+ const stem='/devtools/browser/';return stem.startsWith(m[2])||m[2].startsWith(stem)&&/^[a-f0-9-]{0,35}$/i.test(m[2].slice(stem.length));
+}
 export async function waitForDevtools(profile,proc,spawnFailed,hooks={}){
  const read=hooks.read||(()=>readFile(join(profile,'DevToolsActivePort'),'utf8'));
- const delay=hooks.delay||pause;
+ const delay=hooks.delay||pause;let incomplete_reads=0;
  for(let i=0;i<300;i++){
-  if(spawnFailed()||proc.exitCode!==null||proc.signalCode!==null)return {code:'CHROME_START_FAILED'};
-  let text;try{text=await read();}catch(error){if(error.code!=='ENOENT')return {code:'DEVTOOLS_FILE_UNREADABLE'};await delay(100);continue;}
-  try{return {code:'DEVTOOLS_READY',address:endpoint(text)};}catch{return {code:'DEVTOOLS_FILE_INVALID'};}
+  if(spawnFailed()||proc.exitCode!==null||proc.signalCode!==null)return {code:'CHROME_START_FAILED',incomplete_reads};
+  let text;try{text=await read();}catch(error){if(error.code!=='ENOENT')return {code:'DEVTOOLS_FILE_UNREADABLE',incomplete_reads};await delay(100);continue;}
+  try{return {code:'DEVTOOLS_READY',address:endpoint(text),incomplete_reads};}catch{if(!incompleteDevtools(text))return {code:'DEVTOOLS_FILE_INVALID',incomplete_reads};incomplete_reads++;await delay(100);}
  }
- return {code:'DEVTOOLS_FILE_TIMEOUT'};
+ return {code:'DEVTOOLS_FILE_TIMEOUT',incomplete_reads};
 }
 export async function main(ObserverClass=Observer){
  let profile,proxy,proc,observer,wire,tracked,observation;let code='BINARY_UNAVAILABLE';let sandbox=false;let spawnedError=false;

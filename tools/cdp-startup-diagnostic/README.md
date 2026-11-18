@@ -281,3 +281,13 @@ response異常、LHR返却後のPAGE_HUNG観測を分けます。listenerは必�
 順序はローカル観測であり、Chrome内部の因果関係を証明するものではありません。
 前回run44351598714はこれらを記録していないため遡及的には原因・順序を確定できません。
 prefetch249/256は停止理由ではありません。単体試験で249の遮断と応答障害を別に確認します。
+
+## 追加承認された一回のretry（20261118-b1）
+
+診断workflowは固有件名 `diagnostic: staging ja retry after response proof (20261118-b1)` のpush/attempt1だけ、
+既存の異常遮断・模擬Lighthouse・メモリpolicy・実Chrome loopback4ケースがすべて成功した後に固定 `/ja/` を1回実行します。
+同一SHA・安全コードfingerprint・Chrome版、4ケースの順序/成功/cleanup/転送0を実測コマンドでも照合します。
+ほかの件名のpushやattempt2では実サイトステップは動きません。失敗しても実測retryはしません。
+DevToolsActivePortが空/正しい形式の途中だけの場合、従来の30秒上限の中で完成を待つようにしました。
+完全な形式以外には一切接続せず、不正値は即停止。新プロセスの再起動やsandbox/TLS変更はありません。
+これは部分書込みの可能性への最小対策で、前回のファイル内容は未保存のため原因確定とは扱いません。

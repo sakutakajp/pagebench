@@ -3,6 +3,9 @@ import{observeLighthouse}from'./response-trace.mjs';
 import{openGuarded}from'./fixture-runner.mjs';import{StagingGateway,STAGING_TARGET}from'./staging-gateway.mjs';import{pinnedTunnel}from'./staging-egress.mjs';import{safetyFingerprint,workflowSha}from'./proof.mjs';
 import{readFile,writeFile,rename,appendFile}from'node:fs/promises';import{createHash}from'node:crypto';import{createRequire}from'node:module';import{pathToFileURL}from'node:url';
 const require=createRequire(new URL('../lighthouse-once/package.json',import.meta.url));
+export function prerequisitesValid(fixture,memory,response,fingerprint,sha){
+ return !!sha&&[fixture,memory,response].every(p=>p?.status==='passed'&&p.safety_fingerprint===fingerprint&&p.run_sha===sha&&p.outbound_forwarding===0)&&fixture.chrome===memory.chrome&&fixture.chrome===response.chrome&&JSON.stringify(response.cases?.map(c=>c.case))===JSON.stringify(['parallel_success','network','missing_metadata','redirect'])&&response.cases.every(c=>c.status==='passed'&&c.chrome===fixture.chrome&&c.cleanup==='complete'&&c.outbound_forwarding===0);
+}
 export function liveReport(lhr,ctx){
  const c=lhr.configSettings,stats=ctx.gateway.stats;
  if(stats.fatal||stats.live_documents!==1||!stats.html200||!stats.html_validated||lhr.runtimeError||[lhr.requestedUrl,lhr.finalUrl,lhr.finalDisplayedUrl].some(u=>u!==STAGING_TARGET)||lhr.mainDocumentUrl&&lhr.mainDocumentUrl!==STAGING_TARGET)throw Error('LIVE_RESULT_SCOPE');
@@ -15,8 +18,8 @@ export function liveReport(lhr,ctx){
 async function bounded(promise,ctx){let t;try{return await Promise.race([promise,new Promise((_,reject)=>t=setTimeout(()=>{ctx.proxy.disable();ctx.gateway.fail('LIVE_DEADLINE');reject(Error('LIVE_DEADLINE'));},120000))]);}finally{clearTimeout(t);}}
 export async function stagingOnce(execute=false){let ctx,stage='PREREQUISITE',proxy,runtimeCode=null,observedBenchmark=null;try{
  if(!execute)return {kind:'restricted-staging-lighthouse-cli',status:'stopped_before_measurement',reason:'EXPLICIT_EXECUTE_REQUIRED',performance:null,documents:0};
- const [fixture,memory]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json'].map(async f=>JSON.parse(await readFile(f,'utf8'))));const fingerprint=await safetyFingerprint();
- if(!workflowSha()||[fixture,memory].some(p=>p.status!=='passed'||p.safety_fingerprint!==fingerprint||p.run_sha!==workflowSha())||fixture.chrome!==memory.chrome)throw Error('PREREQUISITE');
+ const [fixture,memory,response]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json','response-path-proof.json'].map(async f=>JSON.parse(await readFile(f,'utf8'))));const fingerprint=await safetyFingerprint();
+ if(!prerequisitesValid(fixture,memory,response,fingerprint,workflowSha()))throw Error('PREREQUISITE');
  await writeFile('staging-once-attempt.json',JSON.stringify({run_sha:workflowSha()}),{flag:'wx',mode:0o600});stage='PUBLIC_DNS_AND_GUARD';
  ctx=await openGuarded(StagingGateway,async()=>{proxy=await pinnedTunnel({onFatal:code=>ctx?.gateway.fail(code)});return proxy;});if(ctx.chrome!==fixture.chrome)throw Error('BROWSER_CHANGED');
  stage='LIGHTHOUSE';ctx.gateway.trace.mark('LIGHTHOUSE_START');proxy.enable(ctx.gateway);const{default:lighthouse}=await import(pathToFileURL(require.resolve('lighthouse')).href);const{SETTINGS}=await import('../lighthouse-once/guard.mjs');const{default:logger}=await import(pathToFileURL(require.resolve('lighthouse-logger')).href);const report=await observeLighthouse(ctx.gateway.trace,logger.events,()=>bounded(lighthouse(STAGING_TARGET,{logLevel:'silent'},{extends:'lighthouse:default',settings:SETTINGS},ctx.page),ctx));

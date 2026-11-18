@@ -1,4 +1,4 @@
-name: Isolated response-path diagnosis
+name: Guarded staging retry after isolated response-path proof
 on:
   push:
     branches:
@@ -56,11 +56,19 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: One authorized staging ja retry after all isolated gates
+        if: >-
+          success() && steps.capture.outputs.fixture_ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.event.head_commit.message == 'diagnostic: staging ja retry after response proof (20261118-b1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-once.mjs --execute
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-response-path-proof
+          name: guarded-staging-retry-response-proof
           path: |
             scoped-capture-comparison.json
             fixture-lighthouse-status.json
@@ -68,5 +76,7 @@ jobs:
             fixture-lighthouse.lhr.json
             staging-memory-proof.json
             response-path-proof.json
+            staging-lighthouse-status.json
+            staging-lighthouse-report.json
           retention-days: 3
           if-no-files-found: ignore
