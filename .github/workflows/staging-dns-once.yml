@@ -128,10 +128,18 @@ jobs:
            ['script','stylesheet','font','image'].includes(type)&&
            /^\/_nuxt\/(?:[A-Za-z0-9_-]+\.)?[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?|png|webp|avif|svg|jpe?g)$/.test(u.pathname);
           }
+          function candidate(u,type,method){
+           if(!['GET','HEAD'].includes(method)||type!=='image'||u.search||u.hash||u.username||u.password)return 'unclassified';
+           if(['/favicon.ico','/favicon-16x16.png','/favicon-32x32.png','/favicon-48x48.png'].includes(u.pathname))return 'known_favicon_image';
+           if(u.pathname==='/icon_square.png')return 'known_touch_icon_image';
+           if(u.pathname==='/icon.svg')return 'known_app_icon_image';
+           if(u.pathname==='/HIRAMEKI.DEV.webp')return 'known_site_logo_image';
+           return 'unclassified';
+          }
           async function smoke(browser,origin,targets){
            if(!targets.length||targets.length>3||new Set(targets).size!==targets.length)throw Error('SCOPE');
            for(const t of targets){const u=new URL(t);if(u.origin!==origin||u.search||u.hash||u.username||u.password)throw Error('SCOPE');}
-           const summary={status:'complete',target:targets.length,attempted:0,rendered:0,pending:targets.length,pages:[],blocked:{ga4:0,gtm:0,adsense:0,other:0,same_origin_unexpected:0,after_fatal:0,request_limit:0,same_origin_non_get:0,same_origin_api:0,nuxt_asset_rejected:0,same_origin_other:0,websocket:0},screenshots:0,operations:'unverified'};
+           const summary={status:'complete',target:targets.length,attempted:0,rendered:0,pending:targets.length,pages:[],first_denied_candidate:null,blocked:{ga4:0,gtm:0,adsense:0,other:0,same_origin_unexpected:0,after_fatal:0,request_limit:0,same_origin_non_get:0,same_origin_api:0,nuxt_asset_rejected:0,same_origin_other:0,websocket:0},screenshots:0,operations:'unverified'};
            for(const target of targets){
             let fatal=null,requests=0,documents=0,documentHttp=null;
             const context=await browser.newContext({viewport:{width:412,height:823},deviceScaleFactor:1.75,locale:'ja-JP',timezoneId:'UTC',serviceWorkers:'block',acceptDownloads:false,ignoreHTTPSErrors:false});
@@ -145,7 +153,7 @@ jobs:
               const doc=r.isNavigationRequest()&&r.resourceType()==='document'&&r.frame()===page.mainFrame()&&u.href===target;
               if(fatal||!['GET','HEAD'].includes(r.method())||(!doc&&!asset(u,r.resourceType(),origin))){if(!fatal){summary.blocked.same_origin_unexpected++;
                const denied=!['GET','HEAD'].includes(r.method())?'same_origin_non_get':/^\/api(?:\/|$)/.test(u.pathname)?'same_origin_api':u.pathname.startsWith('/_nuxt/')?'nuxt_asset_rejected':'same_origin_other';
-               summary.blocked[denied]++;}fatal=fatal||'SAME_ORIGIN_UNEXPECTED';return route.abort();}
+               summary.blocked[denied]++;if(summary.first_denied_candidate===null)summary.first_denied_candidate=denied==='same_origin_other'?candidate(u,r.resourceType(),r.method()):'not_other';}fatal=fatal||'SAME_ORIGIN_UNEXPECTED';return route.abort();}
               if(doc&&++documents>1){fatal=fatal||'REPEATED_DOCUMENT';return route.abort();}
               try{
                const response=await route.fetch({maxRedirects:0,maxRetries:0,timeout:10000});
