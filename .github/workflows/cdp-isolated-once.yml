@@ -1,4 +1,4 @@
-name: Isolated CDP startup observation (once)
+name: Restricted root-PAGE staging pilot (one shot)
 on:
   push:
     branches:
@@ -12,7 +12,7 @@ jobs:
   observe:
     if: github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,15 +46,31 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/fixture-runner.mjs
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Exactly one guarded staging ja Lighthouse measurement
+        if: >-
+          success() && steps.capture.outputs.fixture_ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.event.head_commit.message == 'diagnostic: staging ja one-shot (20261118-root-page-a1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-once.mjs --execute
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-fixture-lighthouse-proof
+          name: guarded-staging-ja-one-shot-proof
           path: |
             scoped-capture-comparison.json
             fixture-lighthouse-status.json
             fixture-lighthouse-summary.json
             fixture-lighthouse.lhr.json
+            staging-memory-proof.json
+            staging-lighthouse-status.json
+            staging-lighthouse-report.json
           retention-days: 3
           if-no-files-found: ignore

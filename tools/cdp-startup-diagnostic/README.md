@@ -231,3 +231,34 @@ CHROME_PATH=/opt/google/chrome/chrome node tools/cdp-startup-diagnostic/fixture-
 ```
 既知のローカル環境はCHROME_SANDBOX_FAILEDのため実ブラウザ検証不可。helper所有者やsandbox設定は変更しません。
 GitHub Actionsの公式ubuntu-24.04 Chromeでmandatory fixtureを実施し、失敗ならLighthouse段階へ進みません。
+
+## 承認された staging /ja/ の一回限り実測
+
+staging-once.mjsはURL入力を受けず、`--execute`指定と同じSHA/安全コードfingerprint/Chrome版の
+fixture-lighthouse-status.json、staging-memory-proof.jsonを必須とします。通常のPSI/既存運用workflowは変更しません。
+診断workflowでは固有コミット件名 `diagnostic: staging ja one-shot (20261118-root-page-a1)` のpush/attempt1だけ実測します。
+将来の別件名pushでは実測しません。同じjobでの二重実行はexclusive作成するattemptファイルで拒否します。
+
+先に従来の実Chrome模擬異常試験・模擬Lighthouseを実行し、次にstaging用policy自体をメモリ応答・
+転送不能proxyで確認。それらが通るまで実ホストへのブラウザ要求はしません。
+本番URLへのfallback、別ページ、実測のretry、キー、API、D1、設定変更はありません。
+
+staging-egress.mjsは標準OS DNSでstaging/image.hirameki.devのIPv4 A回答を各1回だけ取得し、
+全回答が公開IPv4のときだけIPを固定します。private/loopback/linklocal/CGNAT/文書・特殊/予約域とIPv6は拒否。
+https://www.iana.org/assignments/iana-ipv4-special-registry を参照し、特殊用途範囲全体を保守的に拒否します。
+IPv6だけのホストでは開始できません。CONNECTは正確な2ホスト:443だけ、TCPは検証済みIPへ接続するため
+DNS再解決/fallbackはありません。TLSはChromeから元hostnameへend-to-endのまま、復号/独自CA/証明書無視はしません。
+proxyは初期閉鎖で、PAGEの保護完了後だけ有効化。制御喪失/異常では即時全tunnelを閉じます。
+
+トップDocumentは https://staging.hirameki.dev/ja/ のGET1件のみ。GET/HEADの公開静的resourceは既存policyの
+2 HTTPS originに限定、APIは既知の `/ja` ContentメタデータGET契約だけ。Cookie/認証/APIキー類/Refererを
+送信前に除き、query付きsecretや未承認API、GA4/広告/外部origin、prefetch、POST、redirectを拒否します。
+HTMLは200/text-html、非private、IS_PRODUCTION:falseと追跡参照なしをメモリ内で確認し、そのまま継続します。
+HTML/JS/CSSを書換えませんが、検査による待ち時間はあります。正常in-flightは全体6件、通常120要求、prefetch256上限。
+遮断された依存の固定カテゴリ件数を残す、制限付きstaging基準です。CDN purge/warmはしません。
+
+Lighthouse13.6.0/mobile/simulate RTT300ms/800kbps/CPU6x。全設定、final URL、runtime error、実score/全metric、
+benchmarkIndexと表示の件数だけを検証。公開する実測JSONは数値・日時・固定URL/版/実設定・遮断件数のwhitelistで、
+生LHR/HTML/header/画像は保存しません。cleanup完了後atomic保存・JSON読戻し・SHA256を確認します。
+失敗はscore=nullで、実測前停止とDocument要求開始後の実測失敗を分けます。HTTP/DNS/WAFで止まれば迂回や再試行はしません。
+この診断の結果を通常PSI系列・正式な全件ベースラインと混ぜないでください。

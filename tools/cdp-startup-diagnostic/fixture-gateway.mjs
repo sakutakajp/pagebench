@@ -5,6 +5,7 @@ const HTML='<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Is
 const CLIENT_LABELS=new Set(['Browser.getVersion','Browser.getWindowForTarget','Browser.getWindowBounds','Browser.setDownloadBehavior','Target.getTargetInfo','Target.getBrowserContexts','Target.setAutoAttach','Target.setDiscoverTargets','Target.createTarget','Target.attachToTarget','Target.detachFromTarget','Runtime.runIfWaitingForDebugger','Fetch.disable','Security.setIgnoreCertificateErrors']);
 const valid=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(s);
 export class FixtureGateway extends Gateway{
+ get documentURL(){return FIXTURE_URL;}
  constructor(wire,kill){super(wire,kill);this.client=new Map();this.tabIds=new Set();this.uiIds=new Set();this.pageInfo=null;this.pageAttachment=null;this.pageCreatedEvent=null;this.primary=null;this.createdPage=null;this.createRequest=null;this.createReply=null;this.released=false;this.auxRequest=null;this.auxReply=null;this.auxEvent=null;this.stats.fixture_documents=0;this.stats.ui_resumes=0;this.stats.extra_targets=0;}
  forward(m){if(this.onmessage)this.onmessage(JSON.stringify(m));else this.queue.push(m);}
  flush(){for(const m of this.queue.splice(0))this.forward(m);}
@@ -42,7 +43,7 @@ export class FixtureGateway extends Gateway{
     if(t.type==='tab'){if(this.createdPage&&!this.tabIds.has(t.targetId)||this.tabIds.size>=3&&!this.tabIds.has(t.targetId)){this.stats.extra_targets++;this.stats.rejected_target_kind='TAB';this.fail('UNEXPECTED_TAB');return;}this.tabIds.add(t.targetId);return;}
     if(t.type==='browser_ui'){if(this.uiIds.size>=4&&!this.uiIds.has(t.targetId)){this.fail('UI_LIMIT');return;}return;}
     if(t.type!=='page'){this.stats.extra_targets++;this.stats.rejected_target_kind=({worker:'WORKER',service_worker:'SERVICE_WORKER',shared_worker:'SHARED_WORKER',iframe:'IFRAME'})[t.type]||'UNKNOWN';this.fail('UNEXPECTED_TARGET');return;}
-    if(this.pageInfo&&t.targetId!==this.pageInfo.targetId||this.createdPage&&t.targetId!==this.createdPage||t.url&&!['about:blank',FIXTURE_URL].includes(t.url)){this.stats.rejected_target_kind='PAGE';this.fail('PAGE_SCOPE');return;}
+    if(this.pageInfo&&t.targetId!==this.pageInfo.targetId||this.createdPage&&t.targetId!==this.createdPage||t.url&&!['about:blank',this.documentURL].includes(t.url)){this.stats.rejected_target_kind='PAGE';this.fail('PAGE_SCOPE');return;}
     if(m.method==='Target.targetCreated'){if(this.pageCreatedEvent&&this.pageCreatedEvent.params.targetInfo.targetId!==t.targetId){this.fail('UNEXPECTED_PAGE');return;}this.pageCreatedEvent=m;}
     if(this.released)this.forward(m);return;
    }
@@ -67,6 +68,7 @@ export class FixtureGateway extends Gateway{
  send(raw){if(this.stopping)return;
   try{const m=JSON.parse(raw),p=m.params||{},s=this.sessions.get(m.sessionId);this.lastClientCommand=CLIENT_LABELS.has(m.method)?m.method:'OTHER';
    if(m.sessionId&&(!s?.ready||s.internalUI)){this.fail('UNGUARDED_SESSION_COMMAND');return;}
+   if(m.method.startsWith('Security.')&&!['Security.enable','Security.disable','Security.getCertificate'].includes(m.method)||m.method==='Network.disable'&&m.sessionId===this.primary){this.fail('PROTECTION_MUTATION');return;}
    if(['Fetch.disable','Fetch.enable','Fetch.continueRequest','Fetch.continueResponse','Fetch.fulfillRequest','Fetch.failRequest','Fetch.continueWithAuth','Security.setIgnoreCertificateErrors'].includes(m.method)){this.fail('PROTECTION_MUTATION');return;}
    if(m.method==='Network.loadNetworkResource'){this.forward({id:m.id,sessionId:m.sessionId,error:{code:-32000,message:'Direct fetch disabled'}});return;}
    if(m.method==='Network.setBypassServiceWorker'&&p.bypass!==true){this.fail('PROTECTION_MUTATION');return;}
@@ -76,7 +78,7 @@ export class FixtureGateway extends Gateway{
    if(m.method==='Target.createTarget'){if(m.sessionId||this.createRequest||p.url!=='about:blank'||Object.keys(p).some(k=>k!=='url')){this.fail('UNEXPECTED_PAGE');return;}this.createRequest=m.id;}
    if(m.method==='Target.attachToTarget'){if(m.sessionId||p.targetId!==this.createdPage||!this.sessions.get(this.primary)?.ready||this.auxRequest||this.auxEvent||p.flatten!==true){this.fail('AUXILIARY_BINDING_FAILED');return;}this.auxRequest=m.id;}
    if(m.method==='Target.detachFromTarget'&&!this.sessions.get(p.sessionId)?.auxiliary){this.fail('PROTECTION_LOST');return;}
-   if(m.method==='Page.navigate'&&(!s?.ready||!['about:blank',FIXTURE_URL].includes(p.url))){this.fail('NAVIGATION_SCOPE');return;}
+   if(m.method==='Page.navigate'&&(!s?.ready||!['about:blank',this.documentURL].includes(p.url))){this.fail('NAVIGATION_SCOPE');return;}
    if(m.method==='Runtime.runIfWaitingForDebugger'&&!s?.ready){this.fail('EARLY_RESUME');return;}
    if(!m.sessionId&&!['Browser.getVersion','Target.getBrowserContexts','Target.setAutoAttach','Target.setDiscoverTargets','Target.createTarget','Target.attachToTarget','Target.detachFromTarget','Browser.getWindowForTarget','Browser.getWindowBounds'].includes(m.method)){this.fail('ROOT_COMMAND_SCOPE');return;}
    if(m.method==='Browser.getWindowForTarget'&&p.targetId!==this.createdPage){this.fail('ROOT_COMMAND_SCOPE');return;}
