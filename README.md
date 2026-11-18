@@ -196,3 +196,10 @@ URL/title/target ID/session IDは出力しません。未知種別はUNKNOWNと�
 許可外URL、保護完了前の重複attach、同じtarget IDの種別不一致は引き続き停止します。
 準備完了した一次保護がある場合だけ補助sessionを扱います。既存runのTARGET_REJECTEDだけから
 実際の拒否種別・分岐は逆算できないため、この診断を原因確定済みと解釈しないでください。
+
+Chrome起動では `--disable-extensions` と `--disable-component-extensions-with-background-pages` を
+併用し、通常拡張と背景component拡張を抑制します。これは
+[公式chrome-launcher](https://github.com/GoogleChrome/chrome-launcher/blob/main/src/flags.ts)
+でも使われる2フラグです。観測したSERVICE_WORKERの発生元や、Chrome157上での解消は未確認です。
+未知workerは引き続き拒否し、sandbox/TLS・通信制限は維持します。既存の `execute=false` で
+追加フラグを使う全隔離fixtureを1回検証します。A/B比較コマンドは含みません。

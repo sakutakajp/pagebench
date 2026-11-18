@@ -60,3 +60,10 @@ test('same target type confusion is refused; ready blank primary still allows gu
  const h=harness();await attach(h,'same','tab');const accepted=await h.g.protect({sessionId:'bad-alias',targetInfo:{targetId:'same',type:'page',url:'about:blank'},waitingForDebugger:true});assert.equal(accepted,false);assert.equal(h.g.stats.target_rejection.reason,'TARGET_ID_TYPE_CHANGED');
  const p=harness();await attach(p);assert.equal(await p.g.protect({sessionId:'aux',targetInfo:{targetId:'page1',type:'page',url:'about:blank'},waitingForDebugger:false}),true);assert.equal(p.g.stats.fatal,null);
 });
+test('Chrome adds only two official extension suppression flags; workers still cannot resume',async()=>{
+ const{readFile}=await import('node:fs/promises');const{runInNewContext}=await import('node:vm');const source=await readFile(new URL('./engine.mjs',import.meta.url),'utf8');
+ const literal=/spawn\(executable,(\[.*?\]),\{stdio/.exec(source)?.[1];assert.ok(literal);const args=Array.from(runInNewContext(literal,{profile:'/tmp/fixture-profile',proxy:{url:'http://127.0.0.1:9'}}));
+ const extra=['--disable-extensions','--disable-component-extensions-with-background-pages'];for(const flag of extra)assert.equal(args.filter(x=>x===flag).length,1);
+ assert.deepEqual(args.filter(x=>!extra.includes(x)),['--headless=new','--no-startup-window','--no-first-run','--no-default-browser-check','--disable-background-networking','--remote-debugging-port=0','--user-data-dir=/tmp/fixture-profile','--proxy-server=http://127.0.0.1:9','--proxy-bypass-list=<-loopback>','--force-webrtc-ip-handling-policy=disable_non_proxied_udp']);
+ const h=harness();await attach(h,'unapproved','service_worker');assert.equal(h.g.stats.fatal,'TARGET_REJECTED');assert.equal(h.sent.some(x=>x.method==='Runtime.runIfWaitingForDebugger'),false);
+});
