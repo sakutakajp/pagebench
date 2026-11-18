@@ -68,9 +68,10 @@ export class Observer{
   while(sid){if(seen.has(sid)||seen.size>6)return false;seen.add(sid);const s=this.sessions.get(sid);if(!s?.ready)return false;if(s.kind==='TAB')return sid===this.tabSession;if(!['PAGE','BROWSER_UI'].includes(s.kind))return false;sid=s.parent;}
   return false;
  }
+ allowedCommand(method,params,child){return commandAllowed(method,params,child);}
  call(method,params={},sessionId){
   const pageQuery=['Page.enable','Page.getFrameTree'].includes(method)&&sessionId===this.pageSession&&this.lineage()&&params&&Object.keys(params).length===0;
-  if((!pageQuery&&!commandAllowed(method,params,!!sessionId))||sessionId!==undefined&&(typeof sessionId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId))){this.stop('COMMAND_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}
+  if((!pageQuery&&!this.allowedCommand(method,params,!!sessionId))||sessionId!==undefined&&(typeof sessionId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId))){this.stop('COMMAND_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}
   if(this.stopped)return Promise.reject(Error('DIAGNOSTIC_STOPPED'));
   if(method==='Target.createTarget'){if(this.createIssued){this.stop('EXTRA_TAB_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}this.createIssued=true;}
   const scope=sessionId?(['TAB','BROWSER_UI','PAGE'].includes(this.sessions.get(sessionId)?.kind)?this.sessions.get(sessionId).kind:'UNCLASSIFIED_SESSION'):'BROWSER';

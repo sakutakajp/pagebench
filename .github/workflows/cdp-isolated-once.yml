@@ -25,15 +25,15 @@ jobs:
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
-      - name: Isolated omission and single-operation comparisons
+      - name: Compare global page capture and response-scoped capture
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/operation-comparison.mjs
-      - name: Fixed-enum operation comparison only
+        run: node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+      - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-operation-comparison
-          path: operation-comparison.json
+          name: isolated-scoped-capture-comparison
+          path: scoped-capture-comparison.json
           retention-days: 3
           if-no-files-found: ignore

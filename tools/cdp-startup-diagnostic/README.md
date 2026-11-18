@@ -177,3 +177,22 @@ cleanup失敗・非ゼロ安全counter・Chrome版の変化は比較全体を停
 各候補一本のみの3条件でもrootの停止autoattachは共通で有効です。比較するのは子sessionへ送る
 再帰autoattachのうちどれかで、rootと子の重複接続の必要性まで完全分離した実験ではありません。
 別の未停止targetで先に終了した条件は打切りであり、目的のUI通知が将来発生しない証明ではありません。
+
+## root捕捉と確定IDに限定した再帰接続（診断比較）
+
+公式PDLを確認: https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/pdl/domains/Target.pdl
+setAutoAttachは既存の関連targetにも接続します。filterは順序付きの最初の一致で決まります。
+autoAttachRelatedは既存setAutoAttachを取消すため、今回の全件監視の代替にはしません。
+
+CONTROLは従来動作。ROOT_PAGEはrootでbrowser以外すべて（PAGE/UI/未知種別も）を停止捕捉し、
+TAB/UIには再帰接続しません。SELECTED_TABも同じroot捕捉で、応答IDに一致するTABだけに再帰設定します。
+両案ともPAGEのparentIdまたは矛盾のないTAB envelopeと応答TAB IDを照合し、一致したPAGEだけを初期化。
+親情報がない/矛盾なら停止し、出現順で親子を推測しません。
+
+子filterからUI/TAB/PAGE/browserを除きますが、root捕捉は残り、discover/getTargetsは明示的に全種別です。
+未知worker/iframe/新種別のdiscoveryだけでも停止。PAGE配下のworker等はfilterに含め停止捕捉します。
+UIの未停止通知、追加TAB/PAGE、制御喪失にも例外はありません。根拠がなければfail-closedです。
+
+三条件は同じjob/Chromeで新規profileに分けて比較します。rootのPAGE捕捉を追加するため設定自体が変わる
+比較であり、単一因子試験とは呼びません。必要なroot/子autoattach ACK・親ID照合・metadata初期化・cleanupを
+確認した条件だけsafe_for_fixtureにします。この診断成功はLighthouse完走やJSONレポート保存とは別です。
