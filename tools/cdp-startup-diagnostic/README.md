@@ -184,14 +184,18 @@ cleanup失敗・非ゼロ安全counter・Chrome版の変化は比較全体を停
 setAutoAttachは既存の関連targetにも接続します。filterは順序付きの最初の一致で決まります。
 autoAttachRelatedは既存setAutoAttachを取消すため、今回の全件監視の代替にはしません。
 
-CONTROLは従来動作。ROOT_PAGEはrootでbrowser以外すべて（PAGE/UI/未知種別も）を停止捕捉し、
-TAB/UIには再帰接続しません。SELECTED_TABも同じroot捕捉で、応答IDに一致するTABだけに再帰設定します。
-両案ともPAGEのparentIdまたは矛盾のないTAB envelopeと応答TAB IDを照合し、一致したPAGEだけを初期化。
-親情報がない/矛盾なら停止し、出現順で親子を推測しません。
+CONTROLは従来動作。最初の案はrootでTAB/PAGEを同時に含め、Chromeが拒否しました。
+実装の制約を追加確認: https://raw.githubusercontent.com/chromium/chromium/main/content/browser/devtools/protocol/target_handler.cc
+rootフィルターはTAB/PAGEを同時に許可できません。通常PAGEのparentIdも常にあるとは限りません。
+https://raw.githubusercontent.com/chromium/chromium/main/content/browser/devtools/render_frame_devtools_agent_host.cc
 
-子filterからUI/TAB/PAGE/browserを除きますが、root捕捉は残り、discover/getTargetsは明示的に全種別です。
-未知worker/iframe/新種別のdiscoveryだけでも停止。PAGE配下のworker等はfilterに含め停止捕捉します。
-UIの未停止通知、追加TAB/PAGE、制御喪失にも例外はありません。根拠がなければfail-closedです。
+ROOT_PAGEはrootでPAGE/UI/未知種別を停止捕捉しTAB/browserだけを除きます。TABは全件discoveryで監視し、
+作成要求は通常PAGEとして発行。返されたPAGE IDとrootで捕捉した唯一のPAGEを直接照合します。
+TAB/UIには再帰接続しません。root envelopeと応答IDで所有が確定するため、任意の親や出現順を推測しません。
+SELECTED_TABはrootでTAB/UI/未知種別を停止捕捉しPAGE/browserを除き、応答TAB IDに一致するsessionだけへ
+UIを除いた子捕捉を設定します。PAGEはこのTAB親session、または矛盾しない明示parentIdを必須にします。
+両案ともPAGEの子worker等は停止捕捉し、全種別discoveryで未知・追加TAB/PAGEを検出すると停止します。
+UI未停止通知や制御喪失に例外はありません。フィルターで除外した対象を監視から消すことはしません。
 
 三条件は同じjob/Chromeで新規profileに分けて比較します。rootのPAGE捕捉を追加するため設定自体が変わる
 比較であり、単一因子試験とは呼びません。必要なroot/子autoattach ACK・親ID照合・metadata初期化・cleanupを

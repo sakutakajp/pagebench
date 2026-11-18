@@ -3,7 +3,7 @@ export const CAPTURE_MODES=Object.freeze(['CONTROL','ROOT_PAGE','SELECTED_TAB'])
 export async function runCaptureComparisons(run=async mode=>{
  let probe;const Type=mode==='CONTROL'?class extends ResponseBoundObserver{constructor(...args){super(...args);probe=this;}}:class extends ScopedCaptureObserver{constructor(...args){super(...args,mode);probe=this;}};
  const result=await main(Type),entries=result.commands.entries;
- const proof={root_filter:mode==='CONTROL'?'LEGACY_EXCLUDES_PAGE_BROWSER':'ALL_EXCEPT_BROWSER',discovery_filter:mode==='CONTROL'?'LEGACY_DEFAULT':'ALL_TYPES',page_parent_evidence:probe?.parentEvidence||'MISSING',ui_recursive_commands:entries.filter(e=>e.command==='Target.setAutoAttach'&&e.scope==='BROWSER_UI'&&e.event==='SENT').length,page_recursive_ack:entries.some(e=>e.command==='Target.setAutoAttach'&&e.scope==='PAGE'&&e.event==='RESPONDED')};
+ const proof={root_filter:mode==='CONTROL'?'LEGACY_EXCLUDES_PAGE_BROWSER':mode==='ROOT_PAGE'?'PAGE_VIEW_EXCLUDES_TAB_BROWSER':'TAB_VIEW_EXCLUDES_PAGE_BROWSER',discovery_filter:mode==='CONTROL'?'LEGACY_DEFAULT':'ALL_TYPES',tab_monitor:mode==='ROOT_PAGE'?'DISCOVERY_ONLY':'PAUSED_SESSIONS',page_parent_evidence:probe?.parentEvidence||'MISSING',ui_recursive_commands:entries.filter(e=>e.command==='Target.setAutoAttach'&&e.scope==='BROWSER_UI'&&e.event==='SENT').length,page_recursive_ack:entries.some(e=>e.command==='Target.setAutoAttach'&&e.scope==='PAGE'&&e.event==='RESPONDED')};
  const safe_for_fixture=mode!=='CONTROL'&&result.status==='success'&&result.response_id_bound&&proof.page_parent_evidence!=='MISSING'&&proof.ui_recursive_commands===0&&proof.page_recursive_ack;
  return {mode,result,proof,safe_for_fixture};
 },emit=()=>{}){
