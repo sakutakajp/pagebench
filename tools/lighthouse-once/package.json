@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test.mjs",
-    "check": "node --check run.mjs && node --check guard.mjs && node --check gateway.mjs && node --check engine.mjs && node --check fixture.mjs"
+    "check": "node --check run.mjs && node --check guard.mjs && node --check gateway.mjs && node --check engine.mjs && node --check fixture.mjs && node --check startup.mjs"
   },
   "dependencies": {
     "lighthouse": "13.6.0",

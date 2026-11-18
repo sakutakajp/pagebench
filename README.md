@@ -184,3 +184,8 @@ fixture proofはartifactへ出しません。Speed Indexに必要な内部trace�
 
 Codexの実Chrome起動はSUID helper所有者不整合で失敗しました。ローカルは合成CDP・loopback proxy・
 公式設定解決で検証し、実Chrome連携は上記の同一ランナーfixtureを必須gateにしています。
+
+起動診断は固定コードのみで、binary実行可否・数値Chrome版・sandbox/依存ライブラリの定型flag、
+DevToolsファイル／WebSocket／CDP bootstrap／Puppeteer接続／初期targetの段階を区別します。
+Chrome stderrは最大64 KiBをメモリ内で分類し、原文・DevToolsアドレス・profileパス・クエリは出しません。
+CDPの最後の保護設定stepと失敗enumもallowlistだけで記録します。起動flag・sandbox/TLS・通信許可は同じです。

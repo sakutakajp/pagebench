@@ -9,7 +9,7 @@ export class Gateway {
   wire.onclose=()=>{if(!this.stopping)this.fail('CDP_LOST');this.onclose?.();};
  }
  fail(code){if(this.stopping)return;this.stats.fatal??=code;this.stopping=true;this.emergency();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('GUARD_STOPPED'));}this.pending.clear();}
- call(method,params={},sessionId){return new Promise((resolve,reject)=>{if(this.stopping)return reject(Error('GUARD_STOPPED'));const id=++this.ownId;const timer=setTimeout(()=>{this.fail('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));},5000);this.pending.set(id,{resolve,reject,timer});this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));});}
+ call(method,params={},sessionId){this.lastCommand=method;return new Promise((resolve,reject)=>{if(this.stopping)return reject(Error('GUARD_STOPPED'));const id=++this.ownId;const timer=setTimeout(()=>{this.fail('CDP_TIMEOUT');reject(Error('CDP_TIMEOUT'));},5000);this.pending.set(id,{resolve,reject,timer});this.wire.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));});}
  forward(value){
   if(value.method==='Target.attachedToTarget'){
    if(!this.forwarding||!this.onmessage){this.queue.push(value);return;}

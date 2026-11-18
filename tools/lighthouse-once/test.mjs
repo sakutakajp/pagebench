@@ -22,3 +22,13 @@ test('fixture startup failure is sanitized and cannot authorize a live page',asy
  const r=spawnSync(process.execPath,[new URL('run.mjs',import.meta.url).pathname],{cwd:d,env:{},encoding:'utf8',timeout:10000});assert.equal(r.status,1);assert.equal(r.stderr,'');assert.equal(JSON.parse(r.stdout).status,'failed');
  }finally{rmSync(d,{recursive:true,force:true});}
 });
+test('startup phases distinguish file timeout, sandbox exit, malformed data, and WebSocket deadline safely',async()=>{
+ const{evidence,parseDevtools,classifyStderr,waitDevtools,bounded,fixedCode}=await import('./startup.mjs');
+ const proc={exitCode:null,signalCode:null};let d=evidence();
+ await assert.rejects(waitDevtools(proc,async()=>{throw Error('ENOENT secret-cookie')},async()=>{},d,{attempts:2}),e=>e.startup.code==='DEVTOOLS_FILE_TIMEOUT'&&e.startup.chrome_running===true);
+ d=evidence();classifyStderr('SUID sandbox helper — https://private.invalid/?token=secret-cookie',d);await assert.rejects(waitDevtools({exitCode:null,signalCode:'SIGABRT'},()=>{},async()=>{},d),e=>e.startup.code==='CHROME_EXIT_SANDBOX');assert.ok(!JSON.stringify(d).includes('secret-cookie'));
+ d=evidence();classifyStderr('error while loading shared libraries: secret-cookie',d);await assert.rejects(waitDevtools({exitCode:1,signalCode:null},()=>{},async()=>{},d),e=>e.startup.code==='CHROME_EXIT_DEPENDENCY');
+ for(const text of ['0\n/devtools/browser/00000000-0000-0000-0000-000000000000','65536\n/devtools/browser/00000000-0000-0000-0000-000000000000','9222\nwss://external.invalid/?token=secret-cookie'])assert.throws(()=>parseDevtools(text));
+ d=evidence();const url=await waitDevtools(proc,async()=>'9222\n/devtools/browser/00000000-0000-0000-0000-000000000000\n',async()=>{},d);assert.equal(url,'ws://127.0.0.1:9222/devtools/browser/00000000-0000-0000-0000-000000000000');assert.equal(d.devtools_file_valid,true);
+ await assert.rejects(bounded(new Promise(()=>{}),5,'DEVTOOLS_WS_TIMEOUT'),/DEVTOOLS_WS_TIMEOUT/);assert.equal(fixedCode(Error('raw credentials'),'CDP_BOOTSTRAP'),'CDP_BOOTSTRAP_FAILED');assert.equal(fixedCode(Error('raw credentials'),'INITIAL_TARGET'),'INITIAL_TARGET_GUARD_FAILED');
+});

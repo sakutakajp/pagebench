@@ -1,6 +1,6 @@
 import {readFile,writeFile}from'node:fs/promises';import{createHash}from'node:crypto';
 import{open,measure}from'./engine.mjs';
-export async function fingerprint(){let text='';for(const f of ['guard.mjs','gateway.mjs','engine.mjs','fixture.mjs','run.mjs','package-lock.json'])text+=await readFile(new URL(f,import.meta.url),'utf8');return createHash('sha256').update(text).digest('hex');}
+export async function fingerprint(){let text='';for(const f of ['startup.mjs','guard.mjs','gateway.mjs','engine.mjs','fixture.mjs','run.mjs','package-lock.json'])text+=await readFile(new URL(f,import.meta.url),'utf8');return createHash('sha256').update(text).digest('hex');}
 export async function main(){let ctx;let result={kind:'restricted-staging-lighthouse-cli',status:'failed',reason:'BROWSER_OR_GUARD_OR_RESULT_FAILED',performance:null};
  try{
   const proof=JSON.parse(await readFile('fixture-proof.json','utf8'));if(proof.fingerprint!==await fingerprint()||proof.status!=='passed')throw Error('FIXTURE_REQUIRED');

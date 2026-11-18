@@ -1,5 +1,5 @@
 // Same engine/guard as live, but CONNECT forwarding remains unconditionally disabled.
-import assert from'node:assert/strict';import{writeFile,rm}from'node:fs/promises';
+import assert from'node:assert/strict';import{StartupError}from'./startup.mjs';import{writeFile,rm}from'node:fs/promises';
 import{open,measure}from'./engine.mjs';import{TARGET}from'./guard.mjs';import{fingerprint}from'./run.mjs';
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const HTML='<html><head><script src="https://staging.hirameki.dev/fixture-script"></script><link rel="icon" href="data:,"></head><body><h1>Local Lighthouse fixture</h1><p>Visible fixture body.</p><script>window.fixtureLoaded=true</script></body></html>';
@@ -30,5 +30,5 @@ try{
  assert.equal(handshake,false);assert.equal(c.proxy.forwarded,0);assert.equal(c.proxy.approvedConnectAttempts,0);await c.cleanup();
  await writeFile('fixture-proof.json',JSON.stringify({status:'passed',chrome,fingerprint:await fingerprint(),cases:['lighthouse-local-html','POST/API/external','popup','worker','detach','disconnect','mutation','websocket'],outbound_forwarded:0}),{mode:0o600});
  console.log(JSON.stringify({status:'fixture_passed',chrome,outbound_forwarded:0}));
-}catch{const result={kind:'restricted-staging-lighthouse-cli',status:'fixture_failed',reason:stage,live_pages_attempted:0,performance:null};const text=JSON.stringify(result);await writeFile('result.json',text,{mode:0o600});if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n',{flag:'a'});console.log(text);process.exitCode=1;}
+}catch(error){const result={...(error instanceof StartupError?{startup:error.startup}:{}),kind:'restricted-staging-lighthouse-cli',status:'fixture_failed',reason:stage,live_pages_attempted:0,performance:null};const text=JSON.stringify(result);await writeFile('result.json',text,{mode:0o600});if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n',{flag:'a'});console.log(text);process.exitCode=1;}
 finally{for(const c of contexts)await c.cleanup();}
