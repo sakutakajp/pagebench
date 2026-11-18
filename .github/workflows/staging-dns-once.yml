@@ -1,48 +1,131 @@
-name: Staging DNS once
+name: Staging static audit once
 on:
   push:
     branches: [diag/staging-dns-once]
     paths: [.github/workflows/staging-dns-once.yml]
 permissions: {}
 jobs:
-  dns:
+  audit:
     if: github.ref == 'refs/heads/diag/staging-dns-once' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Classify one OS DNS lookup without HTTP
+      - name: One sitemap and at most three static HTML GETs
         shell: python3 {0}
         run: |
-          import ipaddress
-          import json
-          import signal
-          import socket
+          import ipaddress,json,re,socket,ssl,signal,unicodedata
+          import urllib.request,urllib.error
+          from urllib.parse import urlsplit,unquote,quote
+          from xml.etree import ElementTree as ET
+          from html.parser import HTMLParser
+          def origin(value):
+              u=urlsplit(value)
+              if u.scheme!='https' or not u.hostname or u.netloc!=u.hostname or u.path or u.query or u.fragment or any(c.isspace() for c in value):
+                  raise ValueError('INVALID_PUBLIC_ORIGIN')
+              if not re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*',u.hostname): raise ValueError('INVALID_HOST')
+              try: ipaddress.ip_address(u.hostname)
+              except ValueError: pass
+              else: raise ValueError('IP_ORIGIN_UNSUPPORTED')
+              if '.' not in u.hostname or u.hostname.endswith(('.localhost','.local','.internal')): raise ValueError('NONPUBLIC_ORIGIN')
+              return value
 
-          def timeout(*_):
-              raise TimeoutError()
-
-          signal.signal(signal.SIGALRM, timeout)
-          signal.alarm(20)
-          try:
-              addresses = socket.getaddrinfo(
-                  'staging.hirameki.dev', 443, type=socket.SOCK_STREAM
-              )
-              if not addresses:
-                  result = 'EMPTY_RESPONSE'
-              elif all(ipaddress.ip_address(item[4][0]).is_global for item in addresses):
-                  result = 'PUBLIC_ADDRESSES'
-              else:
-                  result = 'NONPUBLIC_ADDRESS'
-          except socket.gaierror as error:
-              result = {
-                  socket.EAI_AGAIN: 'EAI_AGAIN',
-                  socket.EAI_NONAME: 'EAI_NONAME',
-              }.get(error.errno, 'DNS_OTHER')
-          except TimeoutError:
-              result = 'TIMEOUT'
-          except Exception:
-              result = 'OTHER_ERROR'
-          finally:
-              signal.alarm(0)
-          print(json.dumps({'lookup_calls': 1, 'result': result}))
-          raise SystemExit(0 if result == 'PUBLIC_ADDRESSES' else 1)
+          def canonical(value, site):
+              origin(site)
+              if not isinstance(value,str) or len(value)>2048 or any(unicodedata.category(c).startswith('C') for c in value): raise ValueError('INVALID_URL')
+              u=urlsplit(value)
+              if u.scheme!='https' or u.netloc!=urlsplit(site).netloc or u.query or u.fragment or '?' in value or '#' in value: raise ValueError('ORIGIN_OR_QUERY')
+              p=u.path
+              if not p.startswith('/') or '//' in p: raise ValueError('PATH_SHAPE')
+              if re.search(r'%(?![0-9A-Fa-f]{2})',p): raise ValueError('BAD_ESCAPE')
+              decoded=unquote(p,encoding='utf-8',errors='strict')
+              # Encoded delimiters, percent/double encoding, dot segments, controls fail closed.
+              if len(decoded.split('/'))!=len(p.split('/')) or any(x in ('.','..') for x in decoded.split('/')): raise ValueError('PATH_CONFUSION')
+              if any(c.isspace() for c in decoded) or any(c in decoded for c in '%\\?#') or any(unicodedata.category(c).startswith('C') for c in decoded): raise ValueError('UNSAFE_CHARACTER')
+              if unicodedata.normalize('NFC',decoded)!=decoded: raise ValueError('NON_NFC')
+              normalized=site+quote(decoded,safe='/-._~')
+              # Accept literal Unicode or canonical upper-case escapes; reject escaped ASCII,
+              # lower-case percent encodings and mixtures that obscure identity.
+              if '%' in p and value!=normalized: raise ValueError('NONCANONICAL_ENCODING')
+              return normalized
+          SITE='https://staging.hirameki.dev'
+          START=SITE+'/sitemap.xml'
+          NS='{http://www.sitemaps.org/schemas/sitemap/0.9}'
+          LIMIT=4*1024*1024
+          class Stop(Exception): pass
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          class Markers(HTMLParser):
+              def __init__(self): super().__init__(); self.inscript=False; self.parts=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='script': self.inscript=True
+                  if tag in ('script','iframe','ins'): self.parts.extend(v for k,v in attrs if v)
+              def handle_endtag(self,tag):
+                  if tag=='script': self.inscript=False
+              def handle_data(self,data):
+                  if self.inscript: self.parts.append(data)
+          def markers(body):
+              p=Markers(); p.feed(body.decode('utf-8',errors='replace')); s=' '.join(p.parts).lower()
+              return {'ga4_like':bool(re.search(r'gtag\s*\(|google-analytics\.com|googletagmanager\.com/gtag/',s)),
+                      'gtm_like':bool(re.search(r'googletagmanager\.com/(gtm\.js|ns\.html)|gtm-[a-z0-9]+',s)),
+                      'adsense_like':bool(re.search(r'adsbygoogle|pagead2\.googlesyndication\.com|googleads\.g\.doubleclick\.net',s))}
+          def fetch(url):
+              if canonical(url,SITE)!=url: raise Stop('URL_INVALID')
+              addresses=socket.getaddrinfo('staging.hirameki.dev',443,type=socket.SOCK_STREAM)
+              if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses): raise Stop('DNS_NONPUBLIC_OR_EMPTY')
+              opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect(),urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+              with opener.open(url,timeout=15) as r:
+                  if r.status!=200: raise Stop('HTTP_NOT_200')
+                  if r.geturl()!=url: raise Stop('REDIRECT_REJECTED')
+                  body=r.read(LIMIT+1)
+                  if len(body)>LIMIT: raise Stop('SIZE_LIMIT')
+                  return r.status,r.headers.get_content_type(),body
+          def select(body):
+              text=body.decode('utf-8-sig',errors='strict')
+              if '<!' in text or '\x00' in text: raise Stop('UNSAFE_XML')
+              root=ET.fromstring(text)
+              if root.tag!=NS+'urlset': raise Stop('URLSET_REQUIRED')
+              if any(not e.tag.startswith(NS) for e in root.iter()): raise Stop('MIXED_NAMESPACE')
+              urls=set()
+              for e in root:
+                  loc=e.findall(NS+'loc')
+                  if e.tag!=NS+'url' or len(loc)!=1 or len(loc[0]) or not loc[0].text: raise Stop('XML_CONTENT')
+                  urls.add(canonical(loc[0].text.strip(),SITE))
+                  if len(urls)>100000: raise Stop('URL_LIMIT')
+              selected=sorted(u for u in urls if urlsplit(u).path!='/')[:3]
+              if not selected: raise Stop('EMPTY_SAMPLE')
+              return len(urls),selected
+          def audit(transport=fetch):
+              result={'status':'stopped','get_attempts':0,'sitemap_http':None,'accepted_urls':0,'selected_count':0,'encoded_japanese_path':False,'pages':[]}
+              seen=set(); allowed={START}
+              def get(url):
+                  if url not in allowed or url in seen or len(seen)>=4 or canonical(url,SITE)!=url: raise Stop('REQUEST_SCOPE')
+                  seen.add(url); result['get_attempts']+=1
+                  status,mime,body=transport(url)
+                  if status!=200: raise Stop('HTTP_NOT_200')
+                  if len(body)>LIMIT: raise Stop('SIZE_LIMIT')
+                  return status,mime,body
+              try:
+                  status,mime,body=get(START);result['sitemap_http']=status
+                  count,selected=select(body);result['accepted_urls']=count;result['selected_count']=len(selected)
+                  result['encoded_japanese_path']=any('%' in urlsplit(u).path and re.search('[\u3040-\u30ff\u3400-\u9fff]',unquote(urlsplit(u).path)) is not None for u in selected)
+                  allowed.update(selected)
+                  for i,url in enumerate(selected,1):
+                      status,mime,body=get(url)
+                      if mime!='text/html': raise Stop('NOT_HTML')
+                      result['pages'].append({'ordinal':i,'http':status,'html':True,**markers(body)})
+                  result['status']='complete'
+              except urllib.error.HTTPError as e: result.update(reason='HTTP_ERROR',http=e.code)
+              except socket.gaierror as e: result['reason']={socket.EAI_AGAIN:'EAI_AGAIN',socket.EAI_NONAME:'EAI_NONAME'}.get(e.errno,'DNS_OTHER')
+              except Stop as e: result['reason']=str(e)
+              except (TimeoutError,socket.timeout): result['reason']='TIMEOUT'
+              except ssl.SSLError: result['reason']='TLS_ERROR'
+              except Exception: result['reason']='VALIDATION_OR_NETWORK_ERROR'
+              return result
+          def main():
+              def timeout(*_): raise TimeoutError()
+              signal.signal(signal.SIGALRM,timeout); signal.alarm(75)
+              try: result=audit()
+              finally: signal.alarm(0)
+              print(json.dumps(result))
+              return 0 if result['status']=='complete' else 1
+          if __name__=='__main__': raise SystemExit(main())
