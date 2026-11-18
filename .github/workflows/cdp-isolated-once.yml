@@ -26,14 +26,35 @@ jobs:
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
       - name: Compare global page capture and response-scoped capture
+        id: capture
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Locked fixture-only dependencies
+        if: steps.capture.outputs.fixture_ready == 'true'
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/fixture-runner.mjs
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-scoped-capture-comparison
-          path: scoped-capture-comparison.json
+          name: isolated-fixture-lighthouse-proof
+          path: |
+            scoped-capture-comparison.json
+            fixture-lighthouse-status.json
+            fixture-lighthouse-summary.json
+            fixture-lighthouse.lhr.json
           retention-days: 3
           if-no-files-found: ignore

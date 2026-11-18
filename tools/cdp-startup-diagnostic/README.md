@@ -200,3 +200,34 @@ UI未停止通知や制御喪失に例外はありません。フィルターで
 三条件は同じjob/Chromeで新規profileに分けて比較します。rootのPAGE捕捉を追加するため設定自体が変わる
 比較であり、単一因子試験とは呼びません。必要なroot/子autoattach ACK・親ID照合・metadata初期化・cleanupを
 確認した条件だけsafe_for_fixtureにします。この診断成功はLighthouse完走やJSONレポート保存とは別です。
+
+## 模擬専用Lighthouse経路（外向き転送なし）
+
+fixture-gateway.mjs/fixture-runner.mjsは診断用だけです。運用engine/workflowを編集しません。
+ROOT_PAGE対照比較が応答PAGE ID照合・停止PAGE/子捕捉ACK・初期frame・cleanupを確認した同じjobだけで起動。
+固定 http://127.0.0.1:47500/fixture と /fixture.js をFetch.fulfillRequestでメモリから返します。
+このポートにHTTPサーバーを立てたり、実サーバーへ取りに行く処理はありません。他は中止します。
+Chromeのproxyも従来denyProxyで、上流client・接続を有効化するAPIを持ちません。TLS/sandbox旗は不変。
+
+rootの全件discovery/停止PAGE捕捉を維持し、UIはrootで停止保持してPuppeteerへ渡しません。
+新しいtarget/worker/未知種別はPuppeteerへの可視性とは別の監視経路で停止。PAGEは作成応答ID一致・
+子捕捉・Network/Fetch/WebSocket禁止・ServiceWorker bypass・初期frame照合のすべてのACK後だけ渡します。
+既存Gatewayが認めていたready PAGEの補助sessionも、明示attach要求・返却session ID・対象PAGE ID一致と
+主sessionの保護存続を必須に限定します。内部UI/未知sessionを許可する例外はありません。
+呼出側がroot/子filterを変更して監視を隠したり、Fetch/TLS/ServiceWorker保護を解除する要求は止めます。
+
+実Chromeで表示とPOST/外部遮断、popup/worker/iframe/保護喪失/設定改変停止、WebSocket handshakeなしを確認。
+全件通過時だけ新規profileでLighthouse13.6.0を1回実行。mobile/simulate/300ms/800kbps/CPU6x、キャッシュ初期状態。
+LHRのruntimeError、URL、版、実設定、有限スコア/全指標を検証し、画像dataを含まないLHR JSONだけをatomic保存。
+cleanup完了後のJSON読戻し・SHA256まで成功した場合だけpassedとします。Trace/artifacts/画像は保存しません。
+ログとstatusは固定段階codeだけ。失敗を0点にせず、診断JSONとfixture-lighthouse.lhr.jsonを区別します。
+
+ローカル実行（正式Chromeがsandbox有効で使える環境のみ）:
+```
+node --test tools/cdp-startup-diagnostic/*.test.mjs
+(cd tools/lighthouse-once && npm ci --ignore-scripts)
+CHROME_PATH=/opt/google/chrome/chrome node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+CHROME_PATH=/opt/google/chrome/chrome node tools/cdp-startup-diagnostic/fixture-runner.mjs
+```
+既知のローカル環境はCHROME_SANDBOX_FAILEDのため実ブラウザ検証不可。helper所有者やsandbox設定は変更しません。
+GitHub Actionsの公式ubuntu-24.04 Chromeでmandatory fixtureを実施し、失敗ならLighthouse段階へ進みません。
