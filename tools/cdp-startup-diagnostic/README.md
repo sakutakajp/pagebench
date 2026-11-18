@@ -316,3 +316,9 @@ proxyで遮断したOPTIONS・POST・その他メソッドを固定件数で区�
 OPTIONSも許可しません。ブラウザー内部のpreflightはページFetchとは別経路の可能性があるため、
 これを観測した場合、GET/HEAD限定のライブ経路がその送信まで防げるとは断定しません。
 この診断workflowには実サイト実行はありません。
+
+Font境界の対照: 同一job/Chromeの新規プロファイルで、同じ固定loopback Font URLに対する単純GETとFontFaceを比較。
+単純GETのFetchは診断subclassのその固定URLだけ照合上Font型に写像し、同じヘッダー処理・continue経路を通します。
+実測ポリシーは変更しません。network発生/Fetch要求/実際のpolicy判断/continue送信と応答/応答エラーを固定件数で記録。
+proxyのCONNECTもloopback宛・宣言済みホスト宛・その他に限定分類し、すべて拒否します。IDや任意URLは出しません。
+通常のfixture失敗は結果を保持して独立対照へ進めますが、未知の安全停止/cleanup失敗なら後続も停止します。
