@@ -115,10 +115,10 @@ BROWSER_UIもpageも再開せず、外向き転送は0です。この版変更�
 
 根拠: https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-getVersion
 
-## 直列10回の実Chrome診断
+## 関係分類だけの診断
 
-専用workflowはten-trials.mjsで同じmain()を直列10回呼びます。各main()が新しい一時profile・Chrome・
-全拒否proxyを作成し終了します。各回の固定観測code/版/cleanupとelapsed_ms、最後に成功・失敗・未試行件数を
-記録します。ローカル合成結果を実試行へ補充しません。通常の起動・版・初期化失敗は10回まで継続し、
-保護喪失、停止していないtarget、不正入力/コマンド、非ゼロ安全counter、終了未完了などは即時SAFETY_STOP。
-未試行を成功としません。jobは最大8分、同じbranch/attempt1だけで、mainや実計測workflowは変更しません。
+単純な10回反復は終了済みで、新しい検証として数えません。workflowは1回の診断に戻しています。
+新しい固定enum target_relationは同一session、同一targetの別session、別targetのroot/内部UI配下を区別。
+tab_rejectionは追加root/内部UI配下等、tab_create_replyは作成応答受領前後だけを出します。
+raw ID・URL・titleは出しません。関係の記録だけを追加し、転送コマンド・停止条件は不変です。
+合成CDPでは元コードとの6ケース差分比較で送信コマンドと停止結果が完全一致しています。

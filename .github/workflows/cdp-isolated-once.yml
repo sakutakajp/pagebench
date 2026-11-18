@@ -12,7 +12,7 @@ jobs:
   observe:
     if: github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,7 +25,7 @@ jobs:
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
-      - name: Ten serial isolated Chrome trials (no forwarding, no site navigation)
+      - name: One isolated target-relationship probe (no forwarding, no navigation)
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/ten-trials.mjs
+        run: node tools/cdp-startup-diagnostic/diagnostic.mjs
