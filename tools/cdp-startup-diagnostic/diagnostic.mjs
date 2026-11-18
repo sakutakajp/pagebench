@@ -23,7 +23,7 @@ export function freezeObservation(raw){
   if(!EVENT_CODES.has(entry?.event)||(entry.kind!==undefined&&!SAFE_KINDS.has(entry.kind))){code='OBSERVATION_INVALID';continue;}
   sequence.push(Object.freeze({n:sequence.length+1,event:entry.event,...(entry.kind?{kind:entry.kind}:{})}));
  }
- return Object.freeze({schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
+ return Object.freeze({response_id_bound:raw?.response_id_bound===true,candidate_tabs:Number.isInteger(raw?.candidate_tabs)&&raw.candidate_tabs>=0&&raw.candidate_tabs<=3?raw.candidate_tabs:0,quarantined_tabs:Number.isInteger(raw?.quarantined_tabs)&&raw.quarantined_tabs>=0&&raw.quarantined_tabs<=3?raw.quarantined_tabs:0,schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
 }
 export function endpoint(text){
  const m=typeof text==='string'&&text.length<=512&&/^(\d{1,5})\n(\/devtools\/browser\/[a-f0-9-]{36})\n?$/i.exec(text);
@@ -170,7 +170,7 @@ export async function waitForDevtools(profile,proc,spawnFailed,hooks={}){
  }
  return {code:'DEVTOOLS_FILE_TIMEOUT'};
 }
-export async function main(){
+export async function main(ObserverClass=Observer){
  let profile,proxy,proc,observer,wire,tracked,observation;let code='BINARY_UNAVAILABLE';let sandbox=false;let spawnedError=false;
  const kill=()=>proc?.kill('SIGKILL');
  try{
@@ -184,7 +184,7 @@ export async function main(){
   if(!address)throw Error('START_FAILED');
   code='DEVTOOLS_WS_FAILED';wire=new WebSocket(address);
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{wire.close();reject(Error('TIMEOUT'));},3000);wire.onopen=()=>{clearTimeout(timer);resolve();};wire.onerror=()=>{clearTimeout(timer);reject(Error('CONNECTION_FAILED'));};});
-  observer=new Observer(wire,kill);observation=await observer.collect();
+  observer=new ObserverClass(wire,kill);observation=await observer.collect();
  }catch{observation=observer?.result()||{schema:1,kind:'isolated-cdp-startup-observation',code:sandbox?'CHROME_SANDBOX_FAILED':code,sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
  const captured=freezeObservation(observation),capturedVersion=freezeVersion(observer?.browserVersion||{code:'VERSION_NOT_ATTEMPTED'});
  const cleanup=await cleanupDiagnostic({observer,wire,proc,tracked,proxy,profile,removeProfile:p=>rm(p,{recursive:true,force:true})});

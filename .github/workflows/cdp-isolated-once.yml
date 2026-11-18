@@ -25,7 +25,28 @@ jobs:
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
-      - name: One isolated target-relationship probe (no forwarding, no navigation)
+      - name: Bind one paused target by createTarget response ID
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/diagnostic.mjs
+        run: |
+          node --input-type=module <<'JS'
+          import {main} from './tools/cdp-startup-diagnostic/diagnostic.mjs';
+          import {ResponseBoundObserver} from './tools/cdp-startup-diagnostic/response-bound.mjs';
+          import {writeFile,appendFile} from 'node:fs/promises';
+          let result;
+          try { result=await main(ResponseBoundObserver); }
+          catch { result={status:'failed',code:'DIAGNOSTIC_INTERNAL_FAILED'}; }
+          const text=JSON.stringify(result);
+          await writeFile('response-binding-result.json',text,{mode:0o600});
+          console.log(text);
+          await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n');
+          if(result.status!=='success'||result.response_id_bound!==true)process.exitCode=1;
+          JS
+      - name: Fixed-enum binding result only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-response-binding-result
+          path: response-binding-result.json
+          retention-days: 3
+          if-no-files-found: ignore

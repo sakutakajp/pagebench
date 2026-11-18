@@ -127,3 +127,13 @@ raw ID・URL・titleは出しません。関係の記録だけを追加し、転
 初回起動の待機不足という別仮説を確認するため、全拒否状態の起動待ちだけを30秒までとし、
 ENOENTと読み取り不可・不正ファイル・Chrome終了を区別します。起動コマンド・TLS/sandbox・
 外向き転送禁止・CDP/対象の停止条件は変えていません。仮説は実Chromeの次の結果で判断します。
+
+## createTarget応答IDによる候補選択
+
+response-bound.mjsは出現順で選びません。作成要求後から応答前までのroot TAB候補を最大3件、
+停止状態のまま保持し、返されたTAB IDと厳密一致する唯一のsessionを選びます。
+候補・UIへ送るのは再帰停止autoattachだけです。非選択候補は再開・Page初期化しません。
+応答後の新しい不一致TAB、未知/不整合、候補上限、制御喪失は停止。応答IDに対応する候補が
+現れなければ5秒以内にTAB_BINDING_FAILED。選択TAB配下の唯一のabout:blank pageだけをmetadata初期化します。
+response_id_bound/candidate_tabs/quarantined_tabsのみを出し、raw IDは出しません。
+これはLighthouse完走や実サイト成功とは別の前提検証です。
