@@ -12,7 +12,7 @@ jobs:
   observe:
     if: github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,28 +25,15 @@ jobs:
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
           node --check tools/cdp-startup-diagnostic/cleanup.mjs
           node --test tools/cdp-startup-diagnostic/*.test.mjs
-      - name: Bind one paused target by createTarget response ID
+      - name: One-factor isolated autoattach comparisons
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: |
-          node --input-type=module <<'JS'
-          import {main} from './tools/cdp-startup-diagnostic/diagnostic.mjs';
-          import {ResponseBoundObserver} from './tools/cdp-startup-diagnostic/response-bound.mjs';
-          import {writeFile,appendFile} from 'node:fs/promises';
-          let result;
-          try { result=await main(ResponseBoundObserver); }
-          catch { result={status:'failed',code:'DIAGNOSTIC_INTERNAL_FAILED'}; }
-          const text=JSON.stringify(result);
-          await writeFile('response-binding-result.json',text,{mode:0o600});
-          console.log(text);
-          await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n');
-          if(result.status!=='success'||result.response_id_bound!==true)process.exitCode=1;
-          JS
-      - name: Fixed-enum binding result only
+        run: node tools/cdp-startup-diagnostic/operation-comparison.mjs
+      - name: Fixed-enum operation comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: isolated-response-binding-result
-          path: response-binding-result.json
+          name: isolated-operation-comparison
+          path: operation-comparison.json
           retention-days: 3
           if-no-files-found: ignore

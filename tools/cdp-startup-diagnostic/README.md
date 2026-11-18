@@ -156,3 +156,20 @@ Chrome内部の依存関係やdeadlockをこの一覧だけで断定しません
 2秒期限、送信コマンド/引数、保護条件、再開禁止は不変。最初の停止理由とコマンド記録をcleanup前に
 immutableへ確定し、終了に伴う待機中止はTIMEOUTと区別します。最大64コマンド・128イベントで有界化。
 同じkindへの並行要求も連番で区別し、個々のsession IDを外に出しません。
+
+## 同一job内の一因子比較
+
+operation-comparison.mjsはNO_CREATE（作成なし対照）、FULL_CONTROL（従来動作）、UI向け・
+1番目TAB向け・2番目TAB向けautoattachのうち1つだけ保留、の5条件を新規profile/processで直列比較します。
+保留は送信しないままPromiseを保持し、終了時に中止します。対象の再開や新しい通信許可はありません。
+保留条件では保護設定の完了自体が意図的に不完全なので、ページ検証済み/計測可能とは扱いません。
+rootの停止autoattach、Chrome/TLS/sandboxと全拒否proxyは全条件共通。未知や未停止通知は従来通り停止します。
+
+公開結果には操作のFIRST_TAB/SECOND_TAB/BROWSER_UIラベルと送信/保留状態、通知の親sessionが
+どの操作の送信先か、既存通知の親と同じか、だけを固定enumで記録します。IDやURLは出しません。
+各条件のChrome版を照合し、不一致は比較を中止、欠損はUNVERIFIED。runner版は同じjobのsetupログで確認します。
+通常の起動/タイムアウトも結果として残し、実際に候補操作へ到達しなければintervention_applied=false。
+同じ未再現を否定の証明にはしません。条件ごとに観測終了時点も異なり得るため打切りを区別します。
+
+各条件の終了確認・profile削除後に次を開始し、完了した記録をatomic保存してから進みます。
+cleanup失敗・非ゼロ安全counter・Chrome版の変化は比較全体を停止。mock Lighthouseや実サイトへの移行はありません。
