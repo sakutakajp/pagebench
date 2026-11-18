@@ -15,8 +15,7 @@ jobs:
       run:
         working-directory: tools/lighthouse-once
     env:
-      PUPPETEER_CACHE_DIR: ${{ runner.temp }}/pagebench-chrome
-      PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD: 'true'
+      CHROME_PATH: /opt/google/chrome/chrome
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +25,8 @@ jobs:
           node-version: '22.19.0'
       - run: npm ci
       - run: npm test && npm run check
+      - name: Mandatory isolated real-Chrome fixture (zero outbound forwarding)
+        run: node fixture.mjs
       - name: One restricted staging navigation, no retries
         run: node run.mjs
       - name: Small sanitized result only

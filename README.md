@@ -139,42 +139,48 @@ mobileで各1回・最大2回、最初の失敗で停止します。既存の本
 in-flight中断は結果不明として止まります。新たなActions実行は新規計測になるため、
 自動再実行や失敗時の再試行は行わないでください。Secret未設定ならGoogle通信前に停止します。
 
-## 制限付きstaging Lighthouse CLI：1ページ・1回（レビュー用）
+## 制限付きstaging Lighthouse CLI：1ページ・1回
 
-新workflow **Restricted staging Lighthouse CLI (one page)** は手動・既定branch・
-初回attemptのみです。対象は `https://staging.hirameki.dev/ja/` 固定、1ナビゲーション。
-PSI APIとキーは使用せず、既存PSI系列・正式baselineとも別扱いです。
-mobile / simulate / RTT 300 ms / 800 kbps / CPU slowdown 6、毎回新規profile。
-Lighthouse 13.6.0・Puppeteer 25.18.1・対応Chrome for Testing 157.0.8103.78をlock付きで取得し、
-実Chrome版とLHRの実設定・最終URL・HTTP200 HTML・数値指標を照合してから成功にします。
+Actions → **Restricted staging Lighthouse CLI (one page)** → main の初回attemptのみ。
+対象は `https://staging.hirameki.dev/ja/` 固定です。mobile / simulate / RTT 300 ms /
+800 kbps / CPU slowdown 6、新規profileで1回だけ。PSI/Secret/正式baselineとは独立です。
+
+Lighthouse 13.6.0・Puppeteer Core 25.18.1をlock付きで取得し、ランナー標準の正式Chrome
+(`/opt/google/chrome/chrome`) をsandbox/TLS有効のまま使います。Chromeの実版とLHRの実設定を
+結果へ記録します。OS・sandbox・CAは変更しません。標準Chromeの版はrunner更新で変わるので、
+比較時は記録された実版も合わせてください。
 
 ```bash
 cd tools/lighthouse-once
 npm ci
 npm test
 npm run check
-# 本人が実サイト計測を承認した環境でだけ：
-node run.mjs
+# 実サイト通信ゼロの必須fixture。sandboxが有効に使える環境で：
+CHROME_PATH=/opt/google/chrome/chrome node fixture.mjs
+# fixtureが成功し、本人が固定staging計測を承認した場合だけ：
+CHROME_PATH=/opt/google/chrome/chrome node run.mjs
 ```
 
-`npm ci` は公式Puppeteerの通常手順で固定版Chromeを取得します。sandbox/TLSを無効にする
-引数、証明書差替え、OS設定変更はありません。sandboxが使えなければ失敗で停止します。
-Actionsも環境によってsandbox起動できない可能性があり、未実行の現時点では成功を保証しません。
+同一jobの実Chrome fixtureが失敗すると、実サイトstepは起動しません。fixtureは同じengineで
+仮想staging URLへのHTML/JSをメモリからfulfillし、proxyは全転送を禁止します。許可ホスト宛て
+CONNECTの試行自体も0件であることを検査します。実Lighthouse設定・指標・最終URLの検証、
+POST/API/外部、新規tab/worker、切断・制限解除、WebSocket遮断を確認してからproofを作ります。
+proofはソース/lock hashと実Chrome版に結び付き、実測前にも照合。失敗時にskip/代替成功はありません。
 
-接続先はloopback CONNECT proxyでstaging/imageのHTTPSだけに制限し、CDPでGET/HEAD、
-公開静的resource、既知の日本語ホームmetadata読み取りだけを許可します。Cookie/認証headerを除去。
-redirect・別ナビゲーション・POST・第三者通信を拒否します。HTML応答に制限用CSPを追加し、
-worker／Service Worker・frame・popup・form・WebSocket接続を遮断します。通常120要求上限。
-**CDP介入とCSPによる機能制限を含むstaging基準**で、無制限の閲覧・PSIと点数を直接比較しません。
-実ChromeのCSP／CDP／Lighthouse連携はこのCodex環境ではsandbox起動失敗のため未検証です。
+CONNECT proxyはstaging/imageの2ホスト443だけに透過中継し、TLSを終端しません。初期は閉鎖。
+CDP gatewayがtargetを実行再開前に捕捉し、再帰autoattachとFetch/Network guardを設定してから
+Puppeteer/Lighthouseに渡します。追加tab/worker等は起動せずChromeごと停止。制御切断・保護喪失・
+解除要求ではproxyの全socketを閉じ、Chromeを終了し結果を破棄します。
+GET/HEAD公開静的資産と既知の日本語ホームmetadataのみ、通常120要求上限。Cookie/認証headerを
+除去し、POST/未知API/redirect/追加ナビゲーション/第三者/WebSocketを拒否。直接CDP resource取得も
+無効化します。HTML/CSP/CSS/JSの書換えはありません。CDP介入・通信制限付きのstaging基準なので、
+通常PSIと同一条件の点数として比較しないでください。
 
-Performance・LCP/TBT/CLS/FCP/SI、日時・版・実設定・固定失敗分類を同じrunのSummaryと
-`result.json`だけに残します（時間指標はms、CLSは無単位）。軽量JSONのみ3日artifact保存。
-生LHR・HTML・trace・画像は出力しません。画像監査2件とfull-page captureは無効にしますが、
-Speed Index算出に必要な内部traceデータは保持し、成果物には出しません。
-profileは終了時に削除。結果不明でも自動再試行なし。再実行ボタンのattemptはskipし、
-新しいdispatchは新規計測になるため重ねて起動しないでください。
+得点に使う5監査の重みは既定Performanceと同じであることを検証しています。結果は
+Performance、LCP/TBT/CLS/FCP/SI（ms、CLSは無単位）、日時・実版・実設定・固定失敗分類のみ。
+Summaryと0600の `result.json`、3日期限の軽量JSON artifactだけを残します。画像・生LHR・HTML・trace・
+fixture proofはartifactへ出しません。Speed Indexに必要な内部traceは算出中のみ使い、full-page captureは
+無効。終了時profile削除、自動retryなし。新dispatchは新計測なので重ねて起動しないでください。
 
-ローカル検証：安全なCDP合成イベント／実loopback proxy／公式Lighthouse設定解決の6試験、
-既存Python25試験、構文とYAML検証成功。実Chromium154起動probeはSUID sandbox helperの
-所有者不整合で停止し、サイト通信0。Actions/固定Chrome157での本計測はまだ実施していません。
+Codexの実Chrome起動はSUID helper所有者不整合で失敗しました。ローカルは合成CDP・loopback proxy・
+公式設定解決で検証し、実Chrome連携は上記の同一ランナーfixtureを必須gateにしています。
