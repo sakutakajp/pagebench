@@ -190,3 +190,9 @@ Codexの実Chrome起動はSUID helper所有者不整合で失敗しました。�
 DevToolsファイル／WebSocket／CDP bootstrap／Puppeteer接続／初期targetの段階を区別します。
 Chrome stderrは最大64 KiBをメモリ内で分類し、原文・DevToolsアドレス・profileパス・クエリは出しません。
 CDPの最後の保護設定stepと失敗enumもallowlistだけで記録します。起動flag・sandbox/TLS・通信許可は同じです。
+
+拒否targetの追加診断は `startup.target_rejection` の `kind` と `reason` の固定enumだけです。
+URL/title/target ID/session IDは出力しません。未知種別はUNKNOWNとして拒否し、追加page/tab、
+許可外URL、保護完了前の重複attach、同じtarget IDの種別不一致は引き続き停止します。
+準備完了した一次保護がある場合だけ補助sessionを扱います。既存runのTARGET_REJECTEDだけから
+実際の拒否種別・分岐は逆算できないため、この診断を原因確定済みと解釈しないでください。

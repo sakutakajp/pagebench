@@ -3,7 +3,7 @@ import lighthouse from 'lighthouse';
 import {spawn,execFile}from'node:child_process';import{constants}from'node:fs';
 import {mkdtemp,readFile,rm,access}from'node:fs/promises';
 import {tmpdir}from'node:os';import{join}from'node:path';
-import {Gateway}from'./gateway.mjs';import{TARGET,SETTINGS,tunnel,summarize}from'./guard.mjs';
+import {Gateway,safeTargetRejection}from'./gateway.mjs';import{TARGET,SETTINGS,tunnel,summarize}from'./guard.mjs';
 import{StartupError,evidence,classifyStderr,waitDevtools,bounded,fixedCode}from'./startup.mjs';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export async function open(fixture=null){
@@ -28,6 +28,7 @@ export async function open(fixture=null){
   out.phase='READY';if(!fixture)proxy.enable();return {browser,page,gateway,proxy,cleanup};
  }catch(error){
   if(gateway){
+   out.target_rejection=safeTargetRejection(gateway.stats.target_rejection);
    const steps=['Target.setAutoAttach','Network.enable','Network.setBypassServiceWorker','Network.setBlockedURLs','Fetch.enable','Page.getFrameTree'];
    if(steps.includes(gateway.lastCommand))out.guard_step=gateway.lastCommand;
    const failures=['CDP_LOST','CDP_TIMEOUT','CDP_FORMAT','TARGET_REJECTED','UNPAUSED_TARGET','PROTECTION_LOST','GUARD_FAILURE','AUTH_REJECTED','PROTECTION_MUTATION','EARLY_RESUME'];

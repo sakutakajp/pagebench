@@ -1,7 +1,7 @@
 // Fixed enums/booleans only. Never expose stderr, websocket addresses or exception text.
 export const PHASES=['BINARY_ACCESS','PROFILE_SETUP','CHROME_SPAWN','DEVTOOLS_FILE','DEVTOOLS_WEBSOCKET','CDP_BOOTSTRAP','PUPPETEER_CONNECT','INITIAL_TARGET','READY'];
 export class StartupError extends Error{constructor(startup){super('STARTUP_FAILED');this.startup=JSON.parse(JSON.stringify(startup));}}
-export function evidence(){return {phase:'BINARY_ACCESS',code:null,guard_step:null,guard_failure:null,binary_executable:false,chrome_version:null,chrome_running:null,devtools_file_valid:false,devtools_listening:false,sandbox_error:false,dependency_error:false,exit_code:null,signalled:false};}
+export function evidence(){return {phase:'BINARY_ACCESS',code:null,guard_step:null,guard_failure:null,target_rejection:null,binary_executable:false,chrome_version:null,chrome_running:null,devtools_file_valid:false,devtools_listening:false,sandbox_error:false,dependency_error:false,exit_code:null,signalled:false};}
 export function classifyStderr(text,out){
  out.devtools_listening ||= /DevTools listening on ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\//.test(text);
  out.sandbox_error ||= /SUID sandbox helper|setuid sandbox helper|No usable sandbox|Failed to move to new namespace/i.test(text);

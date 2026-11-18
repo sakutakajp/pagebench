@@ -1,5 +1,11 @@
 // Single CDP transport: no client can resume a target before its guard is installed.
 import {allowed,headerSafe,TARGET} from './guard.mjs';
+const TARGET_KINDS={page:'PAGE',tab:'TAB',worker:'WORKER',service_worker:'SERVICE_WORKER',shared_worker:'SHARED_WORKER',iframe:'IFRAME',background_page:'BACKGROUND_PAGE',webview:'WEBVIEW',browser:'BROWSER',other:'OTHER'};
+const TARGET_REASONS=new Set(['UNSUPPORTED_TYPE','EXTRA_PAGE','EXTRA_TAB','URL_NOT_ALLOWED','ACTIVE_UNPROTECTED','TARGET_ID_TYPE_CHANGED','DUPLICATE_BEFORE_READY']);
+export function safeTargetRejection(value){
+ if(!value||!Object.values(TARGET_KINDS).concat('UNKNOWN').includes(value.kind)||!TARGET_REASONS.has(value.reason))return null;
+ return {kind:value.kind,reason:value.reason};
+}
 export class Gateway {
  constructor(wire, emergency, fixture=null){
   this.wire=wire;this.emergency=emergency;this.fixture=fixture;this.ownId=1000000000;this.pending=new Map();this.sessions=new Map();this.targets=new Map();this.queue=[];this.delivered=new Set();this.deferred=[];this.forwarding=false;this.stopping=false;this.icons=new Set();
@@ -19,16 +25,21 @@ export class Gateway {
   }
   if(this.onmessage)this.onmessage(JSON.stringify(value));else this.queue.push(value);
  }
+ rejectTarget(t,reason,fatal='TARGET_REJECTED'){this.stats.target_rejection??=safeTargetRejection({kind:Object.hasOwn(TARGET_KINDS,t.type)?TARGET_KINDS[t.type]:'UNKNOWN',reason});this.fail(fatal);return false;}
  async protect(p){
   const t=p.targetInfo,id=p.sessionId;
-  if(!['page','tab'].includes(t.type)){this.fail('TARGET_REJECTED');return false;}
+  if(!['page','tab'].includes(t.type))return this.rejectTarget(t,'UNSUPPORTED_TYPE');
   const prior=[...this.targets.values()].find(x=>x.type===t.type&&x.targetId!==t.targetId);
-  if(prior){this.fail('TARGET_REJECTED');return false;}
-  if(t.url&&t.url!=='about:blank'&&t.url!==TARGET){this.fail('TARGET_REJECTED');return false;}
+  if(prior)return this.rejectTarget(t,t.type==='page'?'EXTRA_PAGE':'EXTRA_TAB');
+  if(t.url&&t.url!=='about:blank'&&t.url!==TARGET)return this.rejectTarget(t,'URL_NOT_ALLOWED');
   const previous=this.targets.get(t.targetId);
-  if(previous){this.sessions.set(id,{ready:true,auxiliary:true});return true;}
+  if(previous){
+   if(previous.type!==t.type)return this.rejectTarget(t,'TARGET_ID_TYPE_CHANGED');
+   if(!this.sessions.get(previous.sessionId)?.ready)return this.rejectTarget(t,'DUPLICATE_BEFORE_READY');
+   this.sessions.set(id,{ready:true,auxiliary:true});return true;
+  }
   // An already running non-blank target was never protected from creation.
-  if(!p.waitingForDebugger&&t.url&&t.url!=='about:blank'){this.fail('UNPAUSED_TARGET');return false;}
+  if(!p.waitingForDebugger&&t.url&&t.url!=='about:blank')return this.rejectTarget(t,'ACTIVE_UNPROTECTED','UNPAUSED_TARGET');
   this.targets.set(t.targetId,{targetId:t.targetId,type:t.type,sessionId:id});this.sessions.set(id,{ready:false});
   await this.call('Target.setAutoAttach',{autoAttach:true,waitForDebuggerOnStart:true,flatten:true},id);
   if(t.type==='page'){

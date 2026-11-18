@@ -42,3 +42,21 @@ test('manual workflow defaults to fixture-only; live requires explicit execute a
  assert.ok(w.indexOf('run: node fixture.mjs')<w.indexOf('run: node run.mjs'));
  assert.ok(!/secrets\.|workflow_call:|push:|schedule:|pull_request:/.test(w));
 });
+test('target rejection reports fixed kind/reason only and never URL, title or identifiers',async()=>{
+ const {safeTargetRejection}=await import('./gateway.mjs');
+ const cases=[['worker','about:blank','WORKER','UNSUPPORTED_TYPE'],['service_worker','about:blank','SERVICE_WORKER','UNSUPPORTED_TYPE'],['unexpected-secret-type','secret-url?token=fixture-private','UNKNOWN','UNSUPPORTED_TYPE'],['page','chrome://newtab/?token=fixture-private','PAGE','URL_NOT_ALLOWED']];
+ for(const [type,url,kind,reason]of cases){const h=harness();const p={sessionId:'s-private',targetInfo:{targetId:'id-private',title:'title-private',type,url},waitingForDebugger:true};assert.equal(await h.g.protect(p),false);assert.deepEqual(h.g.stats.target_rejection,{kind,reason});assert.ok(!JSON.stringify(h.g.stats).includes('private'));assert.equal(h.sent.some(x=>x.method==='Runtime.runIfWaitingForDebugger'),false);}
+ const h=harness();await attach(h);await attach(h,'page2');assert.deepEqual(h.g.stats.target_rejection,{kind:'PAGE',reason:'EXTRA_PAGE'});
+ const t=harness();await attach(t,'tab1','tab');await attach(t,'tab2','tab');assert.deepEqual(t.g.stats.target_rejection,{kind:'TAB',reason:'EXTRA_TAB'});
+ assert.equal(safeTargetRejection({kind:'raw-secret',reason:'raw-secret'}),null);assert.deepEqual(safeTargetRejection({kind:'PAGE',reason:'URL_NOT_ALLOWED',url:'secret'}),{kind:'PAGE',reason:'URL_NOT_ALLOWED'});
+});
+test('concurrent duplicate cannot resume a target while its primary guard is incomplete',async()=>{
+ const sent=[];let g;const wire={send(raw){sent.push(JSON.parse(raw));},close(){}};g=new Gateway(wire,()=>{});
+ const first=g.protect({sessionId:'primary',targetInfo:{targetId:'same',type:'page',url:'about:blank'},waitingForDebugger:true}).catch(()=>false);
+ assert.equal(g.sessions.get('primary').ready,false);
+ const duplicate=await g.protect({sessionId:'duplicate',targetInfo:{targetId:'same',type:'page',url:'about:blank'},waitingForDebugger:true});assert.equal(duplicate,false);assert.deepEqual(g.stats.target_rejection,{kind:'PAGE',reason:'DUPLICATE_BEFORE_READY'});assert.equal(await first,false);assert.equal(g.sessions.has('duplicate'),false);assert.equal(sent.some(x=>x.method==='Runtime.runIfWaitingForDebugger'),false);
+});
+test('same target type confusion is refused; ready blank primary still allows guarded auxiliary session',async()=>{
+ const h=harness();await attach(h,'same','tab');const accepted=await h.g.protect({sessionId:'bad-alias',targetInfo:{targetId:'same',type:'page',url:'about:blank'},waitingForDebugger:true});assert.equal(accepted,false);assert.equal(h.g.stats.target_rejection.reason,'TARGET_ID_TYPE_CHANGED');
+ const p=harness();await attach(p);assert.equal(await p.g.protect({sessionId:'aux',targetInfo:{targetId:'page1',type:'page',url:'about:blank'},waitingForDebugger:false}),true);assert.equal(p.g.stats.fatal,null);
+});
