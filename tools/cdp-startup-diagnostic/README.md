@@ -14,9 +14,9 @@ loopback全拒否proxyを使います。proxyはHTTP403、CONNECT/Upgrade切断�
 DNS lookup・外向きsocket・許可host・enable APIを持ちません。CDP WebSocketも自分のChromeが
 生成したportとbrowser pathを検証したloopback接続だけです。
 
-Chrome開始からproxyは閉鎖したまま。CDPは固定Target観測コマンドとabout:blank作成1回のみ。
+Chrome開始からproxyは閉鎖したまま。CDPは固定Target観測コマンドとabout:blankタブ作成1回、照合済みpageだけへのPage初期化2コマンドです。
 root/child autoattachはwaitForDebuggerOnStart=trueで、Runtime再開・Page.navigate・Fetch転送等は
-コマンドallowlistにありません。tab/pageも再開しません。既知補助target、未知/欠落/空/非文字列、
+コマンドallowlistにありません。tab/pageも再開しません。停止隔離BROWSER_UI以外の既知補助target、未知/欠落/空/非文字列、
 停止していないtarget、制御喪失・上限ではChromeを終了します。未知をfilterから除いて放置しません。
 
 標準出力は固定codeと最大48件の{n,event,kind}、固定ゼロのsite_navigations/outbound_forwarding/
@@ -28,7 +28,7 @@ target_resumesだけ。任意のtype文字列、URL/title/target ID/session ID�
 それ以外は1。生CDPやprofileを保存せず、profileは終了時削除。入力256KiB、イベント48件、
 Chrome起動10秒、WebSocket3秒、各CDP command2秒の上限です。
 
-ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計14試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
+ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計18試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
 sequence=[]で停止。実Chromeでのtarget互換性は未検証です。target_resumes=0はこの診断が再開commandを
 送らない意味で、DevTools接続前のChrome内部処理を取り消せるという意味ではありません。
 
@@ -59,7 +59,7 @@ jobに置くのはこの診断と合成試験だけです。実サイトのstep�
 観測は最初のstop時、Chrome終了要求より前に固定enumだけのimmutable snapshotへ確定します。
 終了操作が失敗してもcode/sequenceを置換せず、別のcleanup.stagesへ段階別固定codeを記録します。
 観測が成功していてもcleanupに失敗が1件あればstatus=failed、終了コード1です。
-workflow側もcodeだけで成功とせずstatusを検査するローカル差分です。今回は未push/未実行です。
+workflow側もcodeだけで成功とせずstatusを検査します。
 
 順序は、早期停止エラーの記録→observer dispose→wire close→Chrome停止要求→close確認（最大3秒）
 →全拒否proxy close→一時profile削除です。close未確認ならPROFILE_HELD_PROCESS_UNCONFIRMEDとして
@@ -71,3 +71,27 @@ stdioのcloseで、全Chrome子processの終了を独立に証明するもので
 Node子processによる終了順序試験をChrome起動成功として報告しません。
 旧コードのfinallyがreturn済み観測を取り消すことは確定していますが、実runのどの終了操作が
 失敗したかはログから特定できていません。ファイル削除競合等を原因と断定しません。
+
+## BROWSER_UIの停止隔離と単一pageのprotocol初期化
+
+公式ChromeソースはBROWSER_UIをWebUI/toolbar等のUI用targetとしてpageと区別します。
+これだけで安全に実行できるとは判断せず、waitingForDebugger=trueを必須として停止状態のまま保持。
+filterから除外せず、再帰Target.setAutoAttachだけを設定します。UIへPage/Runtime/Network操作はしません。
+全拒否proxyとChrome/TLS起動条件も変更しません。
+
+作成は固定about:blank・forTab=trueの1回のみ。戻りのTAB IDと捕捉した唯一のTABを照合し、
+そのsessionの直接配下、または停止隔離UIを挟んだ配下のPAGEだけを対象にします。IDはメモリ内で
+照合し出力しません。親子不明、追加TAB/PAGE、worker・未知種別、停止していないtarget、
+detach/destroy/種別変更はfail-closedです。UIは最大4対象、取得イベントは従来通り最大48件。
+
+pageの初期化はPage.enableとPage.getFrameTreeだけです。frame URLがabout:blank、子frameなしを
+確認したらBLANK_PAGE_PROTOCOL_READY。Runtime再開・JavaScript実行・Puppeteer初期化・描画試験では
+ありません。target_resumes/browser_ui_resumesは常に0。page_protocol_initializedと
+browser_ui_quarantinedは固定型の状態として出します。UIを止めたためpageが現れなければ
+最大5秒でPAGE_NOT_OBSERVED。UIを再開するfallbackはありません。
+
+公式の根拠（実ランナーの親子関係を仮定するためのものではありません）:
+- https://chromedevtools.github.io/devtools-protocol/tot/Target/#method-createTarget
+- https://chromium.googlesource.com/chromium/src/+/a24f112f7dcefa1402ba08df5f325679679e44fc
+- https://chromium.googlesource.com/chromium/src/+/327d939af510cc32a34b28cfa3a6fa82fe5d7418
+- https://chromium.googlesource.com/chromium/src/+/2ebb13842d07f99f830e14f5694495f98a442fb9/chrome/browser/ui/webui_browser/webui_browser_browsertest.cc

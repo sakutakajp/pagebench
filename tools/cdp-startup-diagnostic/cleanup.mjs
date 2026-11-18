@@ -23,4 +23,4 @@ export async function cleanupDiagnostic(r,hooks={}){
  else await attempt('PROFILE_DELETE',hooks.removeProfile||(()=>r.removeProfile(r.profile)),'PROFILE_DELETED','PROFILE_DELETE_FAILED');
  const failed=stages.some(s=>/FAILED|TIMEOUT|UNCONFIRMED/.test(s.code));return Object.freeze({status:failed?'failed':'complete',stages:Object.freeze(stages.map(s=>Object.freeze(s)))});
 }
-export function finishObservation(observation,cleanup){return Object.freeze({...observation,status:observation.code==='PAUSED_PAGE_OBSERVED'&&cleanup.status==='complete'?'success':'failed',cleanup});}
+export function finishObservation(observation,cleanup){return Object.freeze({...observation,status:(observation.code==='PAUSED_PAGE_OBSERVED'||observation.code==='BLANK_PAGE_PROTOCOL_READY'&&observation.page_protocol_initialized===true)&&cleanup.status==='complete'?'success':'failed',cleanup});}
