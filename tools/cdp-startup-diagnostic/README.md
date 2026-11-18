@@ -343,3 +343,21 @@ Chromeエラーの固定コードはChromium公式 net/base/net_error_list.h の
 https://raw.githubusercontent.com/chromium/chromium/main/net/base/net_error_list.h
 Response段階の追加対照はFontだけとDocumentだけに分けます（外部転送不能の独立診断のみ）。
 前6条件のHTML/フォントは同一です。resourceType filterは実測ガードには適用せず、未知要求の許可も追加しません。
+
+## 選択案①: Fontは要求制限＋停止しない応答監視
+
+StagingGatewayは全Requestを従来どおり停止・検査し、Font以外の全ての転送対象はResponseも停止します。
+FontだけはResponse停止から外し、同じprimary session/network IDのNetworkイベントで監視します。
+要求URL/method、redirect、最終URL/origin、200、Font MIME、非private/認証なし、loadingFinishedを照合。
+失敗/欠落/別session/不一致/未対応Fontがあればスコアを採用しません。Network.disable等の保護は残ります。
+異常を観測した場合の即時終了は維持しますが、受動監視はFontがChromeへ渡る前の隔離と同等ではありません。
+受信前の阻止と、受信後の異常検知・結果不採用は別の保証です。この変更は診断ブランチだけです。
+
+font-observe-fixture.mjsは閉じたFont配信で正常、HTTP/MIME/private異常、切断、CORS、redirect、
+finish欠落、session/URL不一致、外部Font、POST、合成Cookie/Authorization/API-key除外を試験します。
+redirect先の配信到達0、禁止POSTの配信到達0、資格情報ヘッダー到達0を数えます。実在の資格情報は使いません。
+同じ受動Font監視Gatewayでpopup/worker/制御喪失/Fetch変更/WSも回帰確認します。
+最後にFontのある模擬Lighthouseを完走し、Font証拠が完全な場合だけ数値のJSONをatomic保存し読み戻します。
+失敗ケースに0点や仮スコアは付けません。score_adopted:false/performance:nullで記録します。
+生LHR/画像/URL/ID/headers/本文は新しい公開成果物に含めません。旧模擬LHRはrunner内だけで検証します。
+このworkflowはstagingを呼ばず、PSI/キー/D1/main/運用workflow/サイト設定を変更しません。

@@ -6,6 +6,7 @@ const CLIENT_LABELS=new Set(['Browser.getVersion','Browser.getWindowForTarget','
 const valid=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(s);
 export class FixtureGateway extends Gateway{
  get documentURL(){return FIXTURE_URL;}
+ fetchPatterns(){return[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*',requestStage:'Response'}];}
  constructor(wire,kill){super(wire,kill);this.client=new Map();this.tabIds=new Set();this.uiIds=new Set();this.pageInfo=null;this.pageAttachment=null;this.pageCreatedEvent=null;this.primary=null;this.createdPage=null;this.createRequest=null;this.createReply=null;this.released=false;this.auxRequest=null;this.auxReply=null;this.auxEvent=null;this.stats.fixture_documents=0;this.stats.ui_resumes=0;this.stats.extra_targets=0;}
  forward(m){if(this.onmessage)this.onmessage(JSON.stringify(m));else this.queue.push(m);}
  flush(){for(const m of this.queue.splice(0))this.forward(m);}
@@ -22,7 +23,7 @@ export class FixtureGateway extends Gateway{
   this.primary=sid;this.pageInfo=t;this.pageAttachment=m;this.sessions.set(sid,{ready:false});
   await this.call('Target.setAutoAttach',captureParams(true),sid);
   await this.call('Network.enable',{},sid);await this.call('Network.setBypassServiceWorker',{bypass:true},sid);await this.call('Network.setBlockedURLs',{urls:['ws://*','wss://*']},sid);
-  await this.call('Fetch.enable',{handleAuthRequests:true,patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*',requestStage:'Response'}]},sid);
+  await this.call('Fetch.enable',{handleAuthRequests:true,patterns:this.fetchPatterns()},sid);
   const tree=await this.call('Page.getFrameTree',{},sid);if(tree.frameTree?.frame?.url!=='about:blank'||tree.frameTree?.childFrames?.length){this.fail('INITIAL_FRAME_SCOPE');return;}
   this.sessions.get(sid).frame=tree.frameTree.frame.id;this.sessions.get(sid).ready=true;await this.releasePage();
  }

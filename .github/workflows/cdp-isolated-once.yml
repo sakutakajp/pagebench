@@ -1,4 +1,4 @@
-name: Independent closed font Fetch comparison
+name: Passive Font response monitor closed proof
 on:
   push:
     branches:
@@ -45,7 +45,13 @@ jobs:
         if: steps.capture.outputs.fixture_ready == 'true'
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/fixture-runner.mjs
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
       - name: Live policy in real Chrome with memory responses and zero forwarding
         if: steps.capture.outputs.fixture_ready == 'true'
         env:
@@ -56,23 +62,21 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/response-fixture.mjs
-      - name: Independent closed font Fetch comparison
+      - name: Passive Font response monitor closed proof
         if: steps.capture.outputs.fixture_ready == 'true'
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/font-compare.mjs
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: independent-font-fetch-comparison
+          name: passive-font-monitor-proof
           path: |
             scoped-capture-comparison.json
-            fixture-lighthouse-status.json
-            fixture-lighthouse-summary.json
-            fixture-lighthouse.lhr.json
             staging-memory-proof.json
             response-path-proof.json
-            font-fetch-comparison.json
+            font-observed-proof.json
+            font-observed-lighthouse-report.json
           retention-days: 3
           if-no-files-found: ignore
