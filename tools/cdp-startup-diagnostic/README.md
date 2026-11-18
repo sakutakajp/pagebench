@@ -310,3 +310,9 @@ OSに元からあるDejaVuSans.ttfを読み、合成HTMLのFontFaceだけで使�
 proxyには外向き転送機能がなく、正常ケースは実際のフォントdecode成功まで確認します。
 自分のFetch.failRequest送信・保護停止より後にNetwork失敗を観測したかも別のbooleanで保持します。
 特に遅着の canceled/ERR_ABORTED は自分の遮断・終了の結果の可能性があり、先行したFont Failedの原因と断定しません。
+
+フォント診断の対照は正常/切断を同一loopback origin、CORSを別loopback portで行います。
+proxyで遮断したOPTIONS・POST・その他メソッドを固定件数で区別し、OPTIONSがGET用preflightかはboolean相当の件数だけ保存。
+OPTIONSも許可しません。ブラウザー内部のpreflightはページFetchとは別経路の可能性があるため、
+これを観測した場合、GET/HEAD限定のライブ経路がその送信まで防げるとは断定しません。
+この診断workflowには実サイト実行はありません。
