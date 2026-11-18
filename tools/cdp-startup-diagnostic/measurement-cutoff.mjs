@@ -1,0 +1,3 @@
+// Use only after the last browser operation. Fence the exact monitored session.
+export async function sealMeasurement(ctx,minimumFonts=0){const g=ctx.gateway;if(g.stats.fatal)throw Error('MEASUREMENT_GUARD_FAILED');await g.call('Runtime.evaluate',{expression:'0',returnByValue:true},g.primary);if(g.stats.fatal)throw Error('MEASUREMENT_GUARD_FAILED');const fonts=g.fonts.seal(minimumFonts);return Object.freeze({boundary:'AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE',fonts});}
+export function verifyMeasurementSeal(ctx,proof){if(ctx.gateway.stats.fatal||!ctx.gateway.fonts.validSeal(proof.fonts))throw Error('MEASUREMENT_SEAL_INVALIDATED');return true;}

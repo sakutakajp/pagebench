@@ -366,3 +366,17 @@ https://raw.githubusercontent.com/chromium/chromium/main/content/browser/devtool
 Responseフィルターは、転送対象の対応8型（Document/Stylesheet/Image/Media/Script/XHR/Fetch/Other）に限定。
 TextTrackは応答フィルターで扱えないため、送信前にUNSUPPORTED_RESPONSE_GUARD_RESOURCEで停止・結果不採用にします。
 未知型も従来のRequestポリシーで拒否し、応答防御のない転送は追加しません。Fontだけが受動監視の対象です。
+
+FontのRequest pauseが、同じsession/network ID/URL/method/frameで別Fetch IDとして2回通知されることを実Chromeで観測。
+同じNetwork開始イベントとprimary frameに厳密に結び付く2通知だけを、1つのFont lifecycleとして検証します。
+各通知で送信先・メソッド・認証除外を再適用。ID欠落、不一致、3通知目、応答後の通知、Font以外の重複は従来どおり停止。
+これはURLや近接順で別要求を推測して結合する処理ではありません。expected/verifiedは論理Font件数、request_pause_bindingsは通知件数です。
+
+保存は最後のpage.evaluate後に、監視primary sessionへ副作用のないfenceを送り、最新guard/Font証拠でsealします。
+seal後cleanup前のFontイベントでも結果を無効化し、保存前にsealを再確認。cleanup開始後の通知は別件数に分離します。
+旧い早期snapshotで採用しない回帰（遅着不完全/失敗/guard失敗）を非通信単体試験で検証。
+実Chromeにも、早期には採用可能だが最終操作中のFont失敗で保存不可となる対照を追加します。
+expected=0はNO_FONTS_OBSERVEDとして仕様上許容できても、Font正常実証ではありません。
+Fontあり模擬Lighthouseはminimum_required=1とVERIFIED_FONTSを必須とします。
+cleanupで分離できるのは完了済みFontへの既知キャンセル通知だけです。新規/説明不能なFontイベントが届けばsealも無効。
+確定境界は監視sessionのprotocol fenceであり、将来のページ動作を無期限に保証するものではありません。
