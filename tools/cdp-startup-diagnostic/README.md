@@ -160,7 +160,7 @@ immutableへ確定し、終了に伴う待機中止はTIMEOUTと区別します�
 ## 同一job内の一因子比較
 
 operation-comparison.mjsはNO_CREATE（作成なし対照）、FULL_CONTROL（従来動作）、UI向け・
-1番目TAB向け・2番目TAB向けautoattachのうち1つだけ保留、の5条件を新規profile/processで直列比較します。
+1番目TAB向け・2番目TAB向けautoattachのうち1つだけ保留、に加え各候補一本だけを送る3条件、計8条件を新規profile/processで直列比較します。
 保留は送信しないままPromiseを保持し、終了時に中止します。対象の再開や新しい通信許可はありません。
 保留条件では保護設定の完了自体が意図的に不完全なので、ページ検証済み/計測可能とは扱いません。
 rootの停止autoattach、Chrome/TLS/sandboxと全拒否proxyは全条件共通。未知や未停止通知は従来通り停止します。
@@ -173,3 +173,7 @@ rootの停止autoattach、Chrome/TLS/sandboxと全拒否proxyは全条件共通�
 
 各条件の終了確認・profile削除後に次を開始し、完了した記録をatomic保存してから進みます。
 cleanup失敗・非ゼロ安全counter・Chrome版の変化は比較全体を停止。mock Lighthouseや実サイトへの移行はありません。
+
+各候補一本のみの3条件でもrootの停止autoattachは共通で有効です。比較するのは子sessionへ送る
+再帰autoattachのうちどれかで、rootと子の重複接続の必要性まで完全分離した実験ではありません。
+別の未停止targetで先に終了した条件は打切りであり、目的のUI通知が将来発生しない証明ではありません。

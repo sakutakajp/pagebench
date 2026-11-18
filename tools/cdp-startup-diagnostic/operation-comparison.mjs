@@ -1,7 +1,7 @@
 // One-factor interventions only. All candidates remain paused and proxy is deny-only.
 import{ResponseBoundObserver,classifyUnpausedUI}from'./response-bound.mjs';
 import{autoAttachParams,main}from'./diagnostic.mjs';
-export const MODES=Object.freeze(['NO_CREATE','FULL_CONTROL','HOLD_UI_AUTOATTACH','HOLD_FIRST_TAB_AUTOATTACH','HOLD_SECOND_TAB_AUTOATTACH']);
+export const MODES=Object.freeze(['NO_CREATE','FULL_CONTROL','HOLD_UI_AUTOATTACH','HOLD_FIRST_TAB_AUTOATTACH','HOLD_SECOND_TAB_AUTOATTACH','ONLY_FIRST_TAB_AUTOATTACH','ONLY_UI_AUTOATTACH','ONLY_SECOND_TAB_AUTOATTACH']);
 export function probeClass(mode,capture=()=>{}){
  if(!MODES.includes(mode))throw Error('INVALID_COMPARISON_MODE');
  return class extends ResponseBoundObserver{
@@ -10,7 +10,8 @@ export function probeClass(mode,capture=()=>{}){
   operation(sid){const o=this.operationBySession.get(sid);if(!o)return {role:this.role(sid),state:'NOT_SENT',command_no:0};const responded=this.commandLog.entries.some(e=>e.command_no===o.command_no&&e.event==='RESPONDED');return {role:o.role,state:o.action==='WITHHELD'?'WITHHELD':responded?'ACKNOWLEDGED':'SENT_PENDING',command_no:o.command_no};}
   call(method,params={},sid){
    if(method==='Target.setAutoAttach'&&sid&&!this.stopped){
-    const role=this.role(sid),hold=this.withheld===0&&((mode==='HOLD_UI_AUTOATTACH'&&role==='BROWSER_UI')||(mode==='HOLD_FIRST_TAB_AUTOATTACH'&&role==='FIRST_TAB')||(mode==='HOLD_SECOND_TAB_AUTOATTACH'&&role==='SECOND_TAB'));
+    const role=this.role(sid),onlyRole=mode==='ONLY_FIRST_TAB_AUTOATTACH'?'FIRST_TAB':mode==='ONLY_SECOND_TAB_AUTOATTACH'?'SECOND_TAB':mode==='ONLY_UI_AUTOATTACH'?'BROWSER_UI':null;
+    const hold=onlyRole?role!==onlyRole:this.withheld===0&&((mode==='HOLD_UI_AUTOATTACH'&&role==='BROWSER_UI')||(mode==='HOLD_FIRST_TAB_AUTOATTACH'&&role==='FIRST_TAB')||(mode==='HOLD_SECOND_TAB_AUTOATTACH'&&role==='SECOND_TAB'));
     const op={role,action:hold?'WITHHELD':'SENT',command_no:hold?0:this.commandLog.serial+1};this.operations.push(op);this.operationBySession.set(sid,op);
     if(hold){this.withheld++;return new Promise((_,reject)=>this.held.push(reject));}
    }
@@ -23,7 +24,7 @@ export function probeClass(mode,capture=()=>{}){
    }
    return super.attach(m,k);
   }
-  evidence(){return {mode,operations:this.operations.map(o=>({...o})),withheld_operations:this.withheld,intervention_applied:mode==='NO_CREATE'||mode==='FULL_CONTROL'||this.withheld===1,unpaused_ui_parent:this.parentObservation};}
+  evidence(){return {mode,operations:this.operations.map(o=>({...o})),withheld_operations:this.withheld,intervention_applied:mode==='NO_CREATE'||mode==='FULL_CONTROL'||(mode.startsWith('ONLY_')?this.operations.some(o=>o.action==='SENT'):this.withheld===1),unpaused_ui_parent:this.parentObservation};}
   stop(code){if(!this.stopped)this.probeSnapshot=this.evidence();super.stop(code);for(const reject of this.held||[])reject(Error('DIAGNOSTIC_STOPPED'));this.held=[];}
   async collect(){
    if(mode!=='NO_CREATE')return super.collect();
@@ -42,7 +43,7 @@ export async function compare(run=async(mode)=>{let probe;const result=await mai
   if(r.cleanup?.status!=='complete'||['site_navigations','outbound_forwarding','target_resumes','browser_ui_resumes'].some(k=>r[k]!==0)){stopReason='SAFETY_OR_CLEANUP_FAILED';break;}
  }
  const versions=records.map(r=>r.result.browser_version?.version).filter(Boolean);
- const summary={kind:'isolated-autoattach-operation-comparison',planned:MODES.length,completed:records.length,chrome:version,version_comparability:versions.length===MODES.length&&new Set(versions).size===1?'SAME_VERSION':'UNVERIFIED',unapplied_interventions:records.filter(r=>r.comparison.mode.startsWith('HOLD_')&&!r.comparison.intervention_applied).length,terminal_status:stopReason||(versions.length===MODES.length?'OBSERVATIONS_COMPLETE':'OBSERVATIONS_INCOMPLETE'),scope:'isolated-no-navigation-no-resume-no-forwarding'};
+ const summary={kind:'isolated-autoattach-operation-comparison',planned:MODES.length,completed:records.length,chrome:version,version_comparability:versions.length===MODES.length&&new Set(versions).size===1?'SAME_VERSION':'UNVERIFIED',unapplied_interventions:records.filter(r=>!['NO_CREATE','FULL_CONTROL'].includes(r.comparison.mode)&&!r.comparison.intervention_applied).length,terminal_status:stopReason||(versions.length===MODES.length?'OBSERVATIONS_COMPLETE':'OBSERVATIONS_INCOMPLETE'),scope:'isolated-no-navigation-no-resume-no-forwarding'};
  return {summary,records};
 }
 if(process.argv[1]===new URL(import.meta.url).pathname){
