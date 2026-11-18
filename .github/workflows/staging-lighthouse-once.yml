@@ -1,0 +1,38 @@
+name: Restricted staging Lighthouse CLI (one page)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-staging-lighthouse-once
+  cancel-in-progress: false
+jobs:
+  pilot:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools/lighthouse-once
+    env:
+      PUPPETEER_CACHE_DIR: ${{ runner.temp }}/pagebench-chrome
+      PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: npm ci
+      - run: npm test && npm run check
+      - name: One restricted staging navigation, no retries
+        run: node run.mjs
+      - name: Small sanitized result only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: restricted-staging-lighthouse-result
+          path: tools/lighthouse-once/result.json
+          retention-days: 3
+          if-no-files-found: ignore

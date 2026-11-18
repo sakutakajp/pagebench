@@ -1,0 +1,1 @@
+{"name":"pagebench-lighthouse-staging-once","private":true,"type":"module","scripts":{"test":"node --test test.mjs","check":"node --check run.mjs && node --check guard.mjs"},"dependencies":{"lighthouse":"13.6.0","puppeteer":"25.18.1"}}
