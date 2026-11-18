@@ -137,3 +137,11 @@ response-bound.mjsは出現順で選びません。作成要求後から応答�
 現れなければ5秒以内にTAB_BINDING_FAILED。選択TAB配下の唯一のabout:blank pageだけをmetadata初期化します。
 response_id_bound/candidate_tabs/quarantined_tabsのみを出し、raw IDは出しません。
 これはLighthouse完走や実サイト成功とは別の前提検証です。
+
+## 停止していない内部UI通知の観測分類
+
+unpaused_uiはメモリ内のtarget/session照合だけで、同一session・同一targetの別session・
+別targetを固定enumへ分類します。既存guardのREADY/INITIALIZING、選択TAB/別TAB/未確定TABの範囲、
+親kindだけを記録し、raw IDやURL/titleは出しません。どの分類でもTARGET_NOT_PAUSEDで終了し、
+既知UIの重複でも無視・再開する例外はまだありません。停止中の既存sessionがあっても、別sessionで
+waitingForDebugger=falseという通知だけから対象全体の停止保証を推測しません。

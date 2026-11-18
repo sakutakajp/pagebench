@@ -17,13 +17,19 @@ const EVENT_CODES=new Set(['CREATED','INFO_CHANGED','ATTACHED_PAUSED','ATTACHED_
 const SAFE_KINDS=new Set([...Object.values(KINDS),'TYPE_MISSING','TYPE_NONSTRING','TYPE_EMPTY','TYPE_UNKNOWN_STRING']);
 const TARGET_RELATIONS=new Set(['NONE','SAME_SESSION','SAME_TARGET_OTHER_SESSION','DISTINCT_TARGET_ROOT','DISTINCT_TARGET_UI_CHILD','DISTINCT_TARGET_OTHER_PARENT']);
 const TAB_REJECTIONS=new Set(['NONE','BEFORE_CREATE','ADDITIONAL_ROOT_TAB','NESTED_UI_TAB','NESTED_TAB','NESTED_PAGE_TAB','OTHER_KNOWN_PARENT_TAB']);
+export function freezeUnpausedUI(raw){
+ if(!raw)return null;
+ const allowed={relation:['INVALID_IDENTIFIERS','SAME_SESSION_SAME_TARGET','SAME_SESSION_DIFFERENT_TARGET','SAME_TARGET_OTHER_SESSION','NEW_TARGET'],prior_guard:['NONE','READY','INITIALIZING'],prior_kind:['NONE','TAB','PAGE','BROWSER_UI'],prior_scope:['NONE','SELECTED_TAB','OTHER_TAB','UNBOUND_TAB'],parent_relation:['ROOT','TAB','PAGE','BROWSER_UI','UNKNOWN']};
+ if(!Object.entries(allowed).every(([k,values])=>values.includes(raw[k])))return null;
+ return Object.freeze(Object.fromEntries(Object.keys(allowed).map(k=>[k,raw[k]])));
+}
 export function freezeObservation(raw){
  let code=OBSERVATION_CODES.has(raw?.code)?raw.code:'OBSERVATION_INVALID';const sequence=[];
  for(const entry of (Array.isArray(raw?.sequence)?raw.sequence:[]).slice(0,48)){
   if(!EVENT_CODES.has(entry?.event)||(entry.kind!==undefined&&!SAFE_KINDS.has(entry.kind))){code='OBSERVATION_INVALID';continue;}
   sequence.push(Object.freeze({n:sequence.length+1,event:entry.event,...(entry.kind?{kind:entry.kind}:{})}));
  }
- return Object.freeze({response_id_bound:raw?.response_id_bound===true,candidate_tabs:Number.isInteger(raw?.candidate_tabs)&&raw.candidate_tabs>=0&&raw.candidate_tabs<=3?raw.candidate_tabs:0,quarantined_tabs:Number.isInteger(raw?.quarantined_tabs)&&raw.quarantined_tabs>=0&&raw.quarantined_tabs<=3?raw.quarantined_tabs:0,schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
+ return Object.freeze({unpaused_ui:freezeUnpausedUI(raw?.unpaused_ui),response_id_bound:raw?.response_id_bound===true,candidate_tabs:Number.isInteger(raw?.candidate_tabs)&&raw.candidate_tabs>=0&&raw.candidate_tabs<=3?raw.candidate_tabs:0,quarantined_tabs:Number.isInteger(raw?.quarantined_tabs)&&raw.quarantined_tabs>=0&&raw.quarantined_tabs<=3?raw.quarantined_tabs:0,schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0,browser_ui_resumes:0,browser_ui_quarantined:Number.isInteger(raw?.browser_ui_quarantined)&&raw.browser_ui_quarantined>=0&&raw.browser_ui_quarantined<=4?raw.browser_ui_quarantined:0,page_protocol_initialized:raw?.page_protocol_initialized===true,target_relation:TARGET_RELATIONS.has(raw?.target_relation)?raw.target_relation:'NONE',tab_rejection:TAB_REJECTIONS.has(raw?.tab_rejection)?raw.tab_rejection:'NONE',tab_create_reply:['NOT_REJECTED','PENDING','RECEIVED'].includes(raw?.tab_create_reply)?raw.tab_create_reply:'NOT_REJECTED'});
 }
 export function endpoint(text){
  const m=typeof text==='string'&&text.length<=512&&/^(\d{1,5})\n(\/devtools\/browser\/[a-f0-9-]{36})\n?$/i.exec(text);
