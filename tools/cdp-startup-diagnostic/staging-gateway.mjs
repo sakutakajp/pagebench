@@ -1,3 +1,4 @@
+import{ResponseTrace}from'./response-trace.mjs';
 import{FixtureGateway}from'./fixture-gateway.mjs';import{allowed,headerSafe,extractIcons,TARGET}from'../lighthouse-once/guard.mjs';
 export const STAGING_TARGET=TARGET;
 const MEMORY_HTML='<!doctype html><html><head><script>window.__NUXT__={config:{public:{IS_PRODUCTION:false}}};window.fixtureReady=true;</script><link rel="icon" href="data:,"></head><body><h1>Staging policy memory fixture</h1><p>Known memory content.</p></body></html>';
@@ -8,7 +9,8 @@ export function checkPublicHtml(body){const f=htmlFlags(body);return f.bounded_h
 export function denyCategory(request,type){let u;try{u=new URL(request.url);}catch{return'URL_INVALID';}if(!['GET','HEAD'].includes(request.method)||request.postData)return'METHOD_OR_BODY';if(/(google-analytics|googletagmanager|googlesyndication|doubleclick|adsbygoogle)/i.test(u.href))return'TELEMETRY_ADS';if(!['https://staging.hirameki.dev','https://image.hirameki.dev'].includes(u.origin))return'OUTSIDE_ORIGIN';if(u.username||u.password||u.hash)return'CREDENTIAL_OR_FRAGMENT';if(type==='Fetch'||type==='XHR'||/\/api\//.test(u.pathname))return'UNAPPROVED_API';if(u.search)return'UNSAFE_QUERY';return'UNAPPROVED_RESOURCE';}
 export class StagingGateway extends FixtureGateway{
  get documentURL(){return TARGET;}
- constructor(...args){super(...args);this.memory=false;this.activeRequests=new Set();this.waitingRequests=[];this.liveRequestMeta=new Map();Object.assign(this.stats,{live_documents:0,http_status:null,html_validated:false,continued_requests:0,blocked_categories:{},prefetch_blocked:0,stripped_credentials:0,max_inflight:0});}
+ constructor(...args){super(...args);this.trace=new ResponseTrace();this.memory=false;this.activeRequests=new Set();this.waitingRequests=[];this.liveRequestMeta=new Map();Object.assign(this.stats,{live_documents:0,http_status:null,html_validated:false,continued_requests:0,blocked_categories:{},prefetch_blocked:0,stripped_credentials:0,max_inflight:0});}
+ fail(code){if(!this.stopping)this.trace?.mark('GUARD_FATAL');return super.fail(code);}
  block(category){this.stats.blocked_categories[category]=(this.stats.blocked_categories[category]||0)+1;this.stats.blocked++;}
  async startRequest(e){if(this.stopping)return;this.activeRequests.add(e.networkId);this.stats.max_inflight=Math.max(this.stats.max_inflight,this.activeRequests.size);this.stats.continued_requests++;const headers=headerSafe(e.request.headers||{}).filter(h=>!['x-api-key','x-goog-api-key'].includes(h.name.toLowerCase()));this.stats.stripped_credentials+=Object.keys(e.request.headers||{}).filter(k=>/^(cookie|authorization|proxy-authorization|x-api-key|x-goog-api-key)$/i.test(k)).length;await this.call('Fetch.continueRequest',{requestId:e.requestId,headers},this.primary);}
  async receive(raw){
@@ -17,10 +19,10 @@ export class StagingGateway extends FixtureGateway{
  }
  async request(e,id){
   const abort=()=>this.call('Fetch.failRequest',{requestId:e.requestId,errorReason:'BlockedByClient'},id);
-  if(e.redirectedRequestId){await abort();this.fail('REDIRECT');return;}
+  if(e.redirectedRequestId){this.trace.mark('REDIRECT_OBSERVED');await abort();this.fail('REDIRECT');return;}
   if(e.responseStatusCode!==undefined||e.responseErrorReason){
-   const meta=this.liveRequestMeta.get(e.requestId);if(!meta||e.responseErrorReason){await abort();this.fail('RESPONSE_SCOPE_OR_NETWORK_ERROR');return;}
-   const status=e.responseStatusCode;if(status>=300&&status<400){await abort();this.fail('REDIRECT');return;}
+   const meta=this.liveRequestMeta.get(e.requestId);this.trace.response(meta,e,this.activeRequests.size);if(!meta||e.responseErrorReason){await abort();this.fail('RESPONSE_SCOPE_OR_NETWORK_ERROR');return;}
+   const status=e.responseStatusCode;if(status>=300&&status<400){this.trace.mark('REDIRECT_OBSERVED');await abort();this.fail('REDIRECT');return;}
    const h=Object.fromEntries((e.responseHeaders||[]).map(h=>[h.name.toLowerCase(),h.value]));
    if(status!==200||h['www-authenticate']||h['proxy-authenticate']||/\bprivate\b/i.test(h['cache-control']||'')){if(meta.type==='Document')this.stats.http_status=status;await abort();this.fail('HTTP_OR_PUBLIC_SCOPE');return;}
    const mime=h['content-type']||'';const permitted=meta.type==='Document'?/^text\/html\b/i.test(mime):meta.type==='Script'?/^(application|text)\/(javascript|ecmascript)\b/i.test(mime):meta.type==='Stylesheet'?/^text\/css\b/i.test(mime):meta.type==='Font'?/^(font\/|application\/(font|octet-stream))/i.test(mime):['Image','Other'].includes(meta.type)?/^image\//i.test(mime):['Fetch','XHR'].includes(meta.type)?/^application\/json\b/i.test(mime):/^(audio\/|video\/|text\/vtt\b)/i.test(mime);

@@ -262,3 +262,22 @@ benchmarkIndexと表示の件数だけを検証。公開する実測JSONは数�
 生LHR/HTML/header/画像は保存しません。cleanup完了後atomic保存・JSON読戻し・SHA256を確認します。
 失敗はscore=nullで、実測前停止とDocument要求開始後の実測失敗を分けます。HTTP/DNS/WAFで止まれば迂回や再試行はしません。
 この診断の結果を通常PSI系列・正式な全件ベースラインと混ぜないでください。
+
+## 応答経路の隔離診断（実サイト実行なし）
+
+現在の診断workflowから `staging-once.mjs --execute` ステップを外しました。
+ブランチpushでは模擬試験のみ実行し、staging DNS/HTMLへの通信や再計測はしません。
+`response-fixture.mjs` は外部に接続する機能のないHTTP proxyで、固定loopbackの合成HTML/JSだけ返します。
+診断専用subclassでその固定URLをポリシー照合時だけ写像し、元のStagingGatewayの
+continueRequest → 実Chromeの応答停止 → metadata照合 → continueResponseを通します。
+live側のlocalhost禁止、TLS、sandbox、停止判定、許可先や上限は変更していません。
+正常8並列JS（同時最大6）、通信切断、metadata欠損注入、redirectを別の新規プロファイルで検証します。
+
+ResponseTraceは固定enum・単調な観測順・最大64イベント/16 milestone/最初の異常を保存します。
+response metadataなし・通信エラー・両方を区別し、通信エラー名はCDPの既知enum以外OTHER。
+URL/ID/headers/bodyは保存しません。停止理由と処理判断は以前と同じです。
+Lighthouse13.6.0のlogger warningの完全一致2種類だけを観測し、load timeout/hung判定と
+response異常、LHR返却後のPAGE_HUNG観測を分けます。listenerは必ず外します。
+順序はローカル観測であり、Chrome内部の因果関係を証明するものではありません。
+前回run44351598714はこれらを記録していないため遡及的には原因・順序を確定できません。
+prefetch249/256は停止理由ではありません。単体試験で249の遮断と応答障害を別に確認します。

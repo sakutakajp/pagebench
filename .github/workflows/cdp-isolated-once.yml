@@ -1,4 +1,4 @@
-name: Restricted root-PAGE staging pilot (one shot)
+name: Isolated response-path diagnosis
 on:
   push:
     branches:
@@ -51,26 +51,22 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/staging-memory.mjs
-      - name: Exactly one guarded staging ja Lighthouse measurement
-        if: >-
-          success() && steps.capture.outputs.fixture_ready == 'true' &&
-          github.event_name == 'push' && github.run_attempt == 1 &&
-          github.event.head_commit.message == 'diagnostic: staging ja one-shot (20261118-root-page-a1)'
+      - name: Actual request and response path on closed loopback fixture
+        if: steps.capture.outputs.fixture_ready == 'true'
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/staging-once.mjs --execute
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: guarded-staging-ja-one-shot-proof
+          name: isolated-response-path-proof
           path: |
             scoped-capture-comparison.json
             fixture-lighthouse-status.json
             fixture-lighthouse-summary.json
             fixture-lighthouse.lhr.json
             staging-memory-proof.json
-            staging-lighthouse-status.json
-            staging-lighthouse-report.json
+            response-path-proof.json
           retention-days: 3
           if-no-files-found: ignore
