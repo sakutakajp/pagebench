@@ -124,3 +124,17 @@ Actions → **Manual mobile PSI pilot (max 3)** → Run workflow → `main`。�
 対象は `https://hirameki.dev/ja/`、`https://hirameki.dev/en/spin-wheel/`、`https://hirameki.dev/ja/amidakuji/` の固定3件。URL入力や対象変更はできません。1実行最大3リクエスト、retryなし、最初の失敗・隔離で停止。公式Google HTTPS固定endpoint・headerのみ、TLS検証・redirect拒否・認証反射検知・canonical/mobile/score検証を既存transportのまま使います。ログ/summaryは固定分類と件数、全3件成功時のみ平均スコアです。失敗を0点にせず平均はnull。生応答・個別行・checkpoint・artifactを保存せず、D1等へ書きません。
 
 同時実行は直列化、10分上限、手動default branch限定です。再実行は新たな最大3リクエストになるため、自動で繰り返さないでください。タイムアウト等で結果不明の場合も自動再試行しません。ブラウザーsmoke・サイトマップdry-runとは別workflowで、スケジュールはありません。この追加の検証は合成レスポンスのみで、開発作業から実PSIやdispatchは行っていません。
+
+## ステージング追加文字2ページの手動PSI
+
+Actions → **Staging glyph mobile PSI (max 2)** → `main`。`SITEMAP_URL` は
+`https://staging.hirameki.dev/sitemap.xml` が必須です。標準namespace・同一originの
+サイトマップ全件を固定し、明朝「あ」と筆記体「A」の指定2件の包含を検証します。
+キーなしstepで各対象の直接200 HTMLも確認し、redirectや本番URL混入で停止します。
+既定はdry-run。`execute` を明示した場合のみ、登録済み `PSI_API_KEY` を送信stepに渡し、
+mobileで各1回・最大2回、最初の失敗で停止します。既存の本番3件workflowとは独立です。
+
+ログと同じrunのSummaryには対象ID、点数、日時、固定状態、manifest hashだけを表示します。
+生応答やartifactは保存しません。runner内の0600 checkpointは成功済みを再問い合わせせず、
+in-flight中断は結果不明として止まります。新たなActions実行は新規計測になるため、
+自動再実行や失敗時の再試行は行わないでください。Secret未設定ならGoogle通信前に停止します。
