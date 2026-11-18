@@ -291,3 +291,22 @@ prefetch249/256は停止理由ではありません。単体試験で249の遮�
 DevToolsActivePortが空/正しい形式の途中だけの場合、従来の30秒上限の中で完成を待つようにしました。
 完全な形式以外には一切接続せず、不正値は即停止。新プロセスの再起動やsandbox/TLS変更はありません。
 これは部分書込みの可能性への最小対策で、前回のファイル内容は未保存のため原因確定とは扱いません。
+
+## Font Network.loadingFailed の完全一致診断（実サイトなし）
+
+現在のworkflowから実サイト実行stepを再び削除しました。pushではstagingへのDNS/HTTP/計測を行いません。
+`NetworkFailureJoin`はFetch要求のnetworkIdとセッションをメモリ内で保持し、同セッションの
+Network.loadingFailed.requestIdとの完全一致だけで照合。応答側networkIdが異なる場合、別セッション、
+redirect、複数Fetch/Network失敗、容量不足は明示的な未確定分類とし、近接順で推測しません。
+先着・遅着を区別します。Network情報が停止までに来なければ未観測。収集のために停止を待たず、
+停止後に既に届いたイベントは記録できても、Chromeを再開・再接続しません。
+生errorText、URL、ID、headers、CORS failedParameterは保存・出力せず、既知enumだけを残します。
+CANCELED/CORS/TLS/CONNECTION/DNS/TIMEOUT/BLOCKEDは独立した観測で、単一の根本原因とは断定しません。
+前回のrun44356846151はこれを保存していないため、Font Failedより細かい過去の理由は復元できません。
+
+`font-fixture.mjs`は閉じたloopback proxy内で正常フォント・切断・CORS拒否を検証します。
+OSに元からあるDejaVuSans.ttfを読み、合成HTMLのFontFaceだけで使用。フォントファイルは同梱/公開しません。
+診断専用subclassの固定2 URLだけを照合用に写像します。実測のlocalhost禁止やTLS設定は変えません。
+proxyには外向き転送機能がなく、正常ケースは実際のフォントdecode成功まで確認します。
+自分のFetch.failRequest送信・保護停止より後にNetwork失敗を観測したかも別のbooleanで保持します。
+特に遅着の canceled/ERR_ABORTED は自分の遮断・終了の結果の可能性があり、先行したFont Failedの原因と断定しません。

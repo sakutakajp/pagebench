@@ -1,4 +1,4 @@
-name: Guarded staging retry after isolated response-path proof
+name: Isolated font network correlation diagnosis
 on:
   push:
     branches:
@@ -56,19 +56,16 @@ jobs:
         env:
           CHROME_PATH: /opt/google/chrome/chrome
         run: node tools/cdp-startup-diagnostic/response-fixture.mjs
-      - name: One authorized staging ja retry after all isolated gates
-        if: >-
-          success() && steps.capture.outputs.fixture_ready == 'true' &&
-          github.event_name == 'push' && github.run_attempt == 1 &&
-          github.event.head_commit.message == 'diagnostic: staging ja retry after response proof (20261118-b1)'
+      - name: Font response and network correlation on closed loopback fixture
+        if: steps.capture.outputs.fixture_ready == 'true'
         env:
           CHROME_PATH: /opt/google/chrome/chrome
-        run: node tools/cdp-startup-diagnostic/staging-once.mjs --execute
+        run: node tools/cdp-startup-diagnostic/font-fixture.mjs
       - name: Fixed-enum capture comparison only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: guarded-staging-retry-response-proof
+          name: isolated-font-network-proof
           path: |
             scoped-capture-comparison.json
             fixture-lighthouse-status.json
@@ -76,7 +73,6 @@ jobs:
             fixture-lighthouse.lhr.json
             staging-memory-proof.json
             response-path-proof.json
-            staging-lighthouse-status.json
-            staging-lighthouse-report.json
+            font-network-proof.json
           retention-days: 3
           if-no-files-found: ignore
