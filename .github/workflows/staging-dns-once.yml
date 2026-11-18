@@ -131,25 +131,27 @@ jobs:
           async function smoke(browser,origin,targets){
            if(!targets.length||targets.length>3||new Set(targets).size!==targets.length)throw Error('SCOPE');
            for(const t of targets){const u=new URL(t);if(u.origin!==origin||u.search||u.hash||u.username||u.password)throw Error('SCOPE');}
-           const summary={status:'complete',target:targets.length,attempted:0,rendered:0,pending:targets.length,pages:[],blocked:{ga4:0,gtm:0,adsense:0,other:0,same_origin_unexpected:0,websocket:0},screenshots:0,operations:'unverified'};
+           const summary={status:'complete',target:targets.length,attempted:0,rendered:0,pending:targets.length,pages:[],blocked:{ga4:0,gtm:0,adsense:0,other:0,same_origin_unexpected:0,after_fatal:0,request_limit:0,same_origin_non_get:0,same_origin_api:0,nuxt_asset_rejected:0,same_origin_other:0,websocket:0},screenshots:0,operations:'unverified'};
            for(const target of targets){
             let fatal=null,requests=0,documents=0,documentHttp=null;
             const context=await browser.newContext({viewport:{width:412,height:823},deviceScaleFactor:1.75,locale:'ja-JP',timezoneId:'UTC',serviceWorkers:'block',acceptDownloads:false,ignoreHTTPSErrors:false});
             try{
              await context.routeWebSocket('**/*',ws=>{summary.blocked.websocket++;ws.close();});
              await context.route('**/*',async route=>{
-              const r=route.request();let u;try{u=new URL(r.url());}catch{fatal='URL_INVALID';return route.abort();}
-              requests++;if(requests>120){fatal='REQUEST_LIMIT';return route.abort();}
-              if(r.redirectedFrom()){fatal='REDIRECT_REJECTED';return route.abort();}
-              if(u.origin!==origin){summary.blocked[category(u.href)]++;return route.abort();}
+              const r=route.request();if(fatal)summary.blocked.after_fatal++;let u;try{u=new URL(r.url());}catch{fatal=fatal||'URL_INVALID';return route.abort();}
+              requests++;if(requests>120){summary.blocked.request_limit++;fatal=fatal||'REQUEST_LIMIT';return route.abort();}
+              if(r.redirectedFrom()){fatal=fatal||'REDIRECT_REJECTED';return route.abort();}
+              if(u.origin!==origin){if(!fatal)summary.blocked[category(u.href)]++;return route.abort();}
               const doc=r.isNavigationRequest()&&r.resourceType()==='document'&&r.frame()===page.mainFrame()&&u.href===target;
-              if(fatal||!['GET','HEAD'].includes(r.method())||(!doc&&!asset(u,r.resourceType(),origin))){summary.blocked.same_origin_unexpected++;fatal=fatal||'SAME_ORIGIN_UNEXPECTED';return route.abort();}
-              if(doc&&++documents>1){fatal='REPEATED_DOCUMENT';return route.abort();}
+              if(fatal||!['GET','HEAD'].includes(r.method())||(!doc&&!asset(u,r.resourceType(),origin))){if(!fatal){summary.blocked.same_origin_unexpected++;
+               const denied=!['GET','HEAD'].includes(r.method())?'same_origin_non_get':/^\/api(?:\/|$)/.test(u.pathname)?'same_origin_api':u.pathname.startsWith('/_nuxt/')?'nuxt_asset_rejected':'same_origin_other';
+               summary.blocked[denied]++;}fatal=fatal||'SAME_ORIGIN_UNEXPECTED';return route.abort();}
+              if(doc&&++documents>1){fatal=fatal||'REPEATED_DOCUMENT';return route.abort();}
               try{
                const response=await route.fetch({maxRedirects:0,maxRetries:0,timeout:10000});
                if(doc)documentHttp=response.status();
-               if(response.status()>=300&&response.status()<400){fatal='REDIRECT_REJECTED';await response.dispose();return route.abort();}
-               if(doc&&response.status()!==200){fatal=response.status()===403?'HTTP_403':'HTTP_NOT_200';await response.dispose();return route.abort();}
+               if(response.status()>=300&&response.status()<400){fatal=fatal||'REDIRECT_REJECTED';await response.dispose();return route.abort();}
+               if(doc&&response.status()!==200){fatal=fatal||(response.status()===403?'HTTP_403':'HTTP_NOT_200');await response.dispose();return route.abort();}
                await route.fulfill({response});await response.dispose();
               }catch{fatal=fatal||'FETCH_FAILED';await route.abort();}
              });
@@ -163,8 +165,9 @@ jobs:
              if(http!==200)fatal=fatal||(http===403?'HTTP_403':'HTTP_NOT_200');
              if(!fatal&&!(response.headers()['content-type']||'').toLowerCase().startsWith('text/html'))fatal='NOT_HTML';
              if(!fatal){await page.waitForTimeout(1000);}
-             let visible=false,heading=false;
-             if(!fatal){const info=await page.evaluate(()=>{const visible=e=>{if(!e)return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};return {body:visible(document.body)&&Boolean(document.body.innerText.trim()),heading:[...document.querySelectorAll('h1,h2,[role="heading"]')].some(visible)};});visible=info.body;heading=info.heading;if(!visible||!heading)fatal='BASIC_RENDER_MISSING';}
+             let visible=null,heading=null;
+             if(!fatal){const info=await page.evaluate(()=>{const visible=e=>{if(!e)return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};return {body:visible(document.body)&&Boolean(document.body.innerText.trim()),heading:[...document.querySelectorAll('h1,h2,[role="heading"]')].some(visible)};});visible=info.body;heading=info.heading;if(!visible||!heading)fatal=fatal||'BASIC_RENDER_MISSING';}
+             if(fatal){visible=null;heading=null;}
              summary.pages.push({ordinal:summary.attempted,http,visible_body:visible,visible_heading:heading,status:fatal||'rendered'});
              if(fatal){summary.status='stopped';break;}summary.rendered++;
             }catch{summary.status='stopped';summary.pages.push({ordinal:summary.attempted,status:fatal||'BROWSER_ERROR'});break;}
