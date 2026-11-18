@@ -23,7 +23,8 @@ jobs:
       - name: Synthetic and loopback-only tests
         run: |
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
-          node --test tools/cdp-startup-diagnostic/diagnostic.test.mjs
+          node --check tools/cdp-startup-diagnostic/cleanup.mjs
+          node --test tools/cdp-startup-diagnostic/*.test.mjs
       - name: Fixed numeric browser version
         run: |
           node --input-type=module <<'JS'
@@ -43,9 +44,9 @@ jobs:
           import {appendFile} from 'node:fs/promises';
           let result;
           try {result=await main();}
-          catch {result={kind:'isolated-cdp-startup-observation',code:'CLEANUP_FAILED',sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
+          catch {result={kind:'isolated-cdp-startup-observation',code:'DIAGNOSTIC_INTERNAL_FAILED',status:'failed',sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
           const text=JSON.stringify(result);
           console.log(text);
           await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n');
-          if(result.code!=='PAUSED_PAGE_OBSERVED')process.exitCode=1;
+          if(result.status!=='success')process.exitCode=1;
           JS

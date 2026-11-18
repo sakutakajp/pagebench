@@ -1,5 +1,6 @@
 // Independent observation only. No Puppeteer/Lighthouse/measurement imports or forwarding path.
 import http from 'node:http';
+import{trackProcess,cleanupDiagnostic,finishObservation}from'./cleanup.mjs';
 import {spawn} from 'node:child_process';
 import {access,mkdtemp,readFile,rm} from 'node:fs/promises';
 import {constants} from 'node:fs';
@@ -10,6 +11,17 @@ export function kindOf(info){
  if(typeof info.type!=='string')return 'TYPE_NONSTRING';
  if(info.type==='')return 'TYPE_EMPTY';
  return Object.hasOwn(KINDS,info.type)?KINDS[info.type]:'TYPE_UNKNOWN_STRING';
+}
+const OBSERVATION_CODES=new Set(['OBSERVING','EVENT_LIMIT','CONTROL_LOST','COMMAND_REJECTED','CDP_TIMEOUT','INPUT_LIMIT','CDP_COMMAND_FAILED','TARGET_TYPE_UNCLASSIFIED','TARGET_NOT_PAUSED','AUXILIARY_TARGET_STOP','INVALID_SESSION','PROTOCOL_OR_CAPTURE_FAILED','PAUSED_PAGE_OBSERVED','NO_PAUSED_PAGE','CLEANUP','BINARY_UNAVAILABLE','CHROME_START_FAILED','CHROME_SANDBOX_FAILED','DEVTOOLS_FILE_INVALID','DEVTOOLS_FILE_TIMEOUT','DEVTOOLS_WS_FAILED','OBSERVATION_INVALID']);
+const EVENT_CODES=new Set(['CREATED','INFO_CHANGED','ATTACHED_PAUSED','ATTACHED_NOT_PAUSED','AUTOATTACH_READY','SNAPSHOT','BLANK_CREATE_REQUEST']);
+const SAFE_KINDS=new Set([...Object.values(KINDS),'TYPE_MISSING','TYPE_NONSTRING','TYPE_EMPTY','TYPE_UNKNOWN_STRING']);
+export function freezeObservation(raw){
+ let code=OBSERVATION_CODES.has(raw?.code)?raw.code:'OBSERVATION_INVALID';const sequence=[];
+ for(const entry of (Array.isArray(raw?.sequence)?raw.sequence:[]).slice(0,48)){
+  if(!EVENT_CODES.has(entry?.event)||(entry.kind!==undefined&&!SAFE_KINDS.has(entry.kind))){code='OBSERVATION_INVALID';continue;}
+  sequence.push(Object.freeze({n:sequence.length+1,event:entry.event,...(entry.kind?{kind:entry.kind}:{})}));
+ }
+ return Object.freeze({schema:2,kind:'isolated-cdp-startup-observation',code,sequence:Object.freeze(sequence),site_navigations:0,outbound_forwarding:0,target_resumes:0});
 }
 export function endpoint(text){
  const m=typeof text==='string'&&text.length<=512&&/^(\d{1,5})\n(\/devtools\/browser\/[a-f0-9-]{36})\n?$/i.exec(text);
@@ -38,7 +50,7 @@ export class Observer{
   wire.onclose=()=>this.stop('CONTROL_LOST');wire.onerror=()=>this.stop('CONTROL_LOST');
  }
  record(event,kind){if(this.stopped)return;if(this.sequence.length>=48){this.stop('EVENT_LIMIT');return;}this.sequence.push({n:this.sequence.length+1,event,...(kind?{kind}:{})});}
- stop(code){if(this.stopped)return;this.stopped=true;this.code=code;this.terminate();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('DIAGNOSTIC_STOPPED'));}this.pending.clear();}
+ stop(code){if(this.stopped)return;this.stopped=true;this.code=code;this.snapshot=freezeObservation(this.result());try{this.terminate();}catch{this.terminationFailed=true;}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('DIAGNOSTIC_STOPPED'));}this.pending.clear();}
  call(method,params={},sessionId){
   if(!commandAllowed(method,params,!!sessionId)||sessionId!==undefined&&(typeof sessionId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId))){this.stop('COMMAND_REJECTED');return Promise.reject(Error('COMMAND_REJECTED'));}
   if(this.stopped)return Promise.reject(Error('DIAGNOSTIC_STOPPED'));
@@ -77,17 +89,18 @@ export class Observer{
   }catch{if(!this.stopped)this.stop('PROTOCOL_OR_CAPTURE_FAILED');}
   return this.result();
  }
- result(){return {schema:1,kind:'isolated-cdp-startup-observation',code:this.code,sequence:this.sequence,site_navigations:0,outbound_forwarding:0,target_resumes:0};}
+ result(){return this.snapshot||{schema:1,kind:'isolated-cdp-startup-observation',code:this.code,sequence:this.sequence,site_navigations:0,outbound_forwarding:0,target_resumes:0};}
  dispose(){if(!this.stopped)this.stop('CLEANUP');this.wire.close();}
 }
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 export async function main(){
- let profile,proxy,proc,observer,wire;let code='BINARY_UNAVAILABLE';let sandbox=false;let spawnedError=false;
+ let profile,proxy,proc,observer,wire,tracked,observation;let code='BINARY_UNAVAILABLE';let sandbox=false;let spawnedError=false;
  const kill=()=>proc?.kill('SIGKILL');
  try{
   const executable=process.env.CHROME_PATH||'/opt/google/chrome/chrome';await access(executable,constants.X_OK);
   profile=await mkdtemp(join(tmpdir(),'cdp-observe-'));proxy=await denyProxy();code='CHROME_START_FAILED';
   proc=spawn(executable,['--headless=new','--no-startup-window','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-extensions-with-background-pages','--remote-debugging-port=0','--user-data-dir='+profile,'--proxy-server='+proxy.url,'--proxy-bypass-list=<-loopback>','--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],{stdio:['ignore','ignore','pipe']});
+  tracked=trackProcess(proc);
   proc.on('error',()=>{spawnedError=true;});let left=65536,tail='';proc.stderr.on('data',chunk=>{if(left<=0)return;const part=chunk.subarray(0,left);left-=part.length;const text=tail+part.toString('utf8');sandbox ||= /SUID sandbox helper|No usable sandbox|Failed to move to new namespace/i.test(text);tail=text.slice(-256);});
   let address;
   for(let i=0;i<100;i++){
@@ -98,8 +111,10 @@ export async function main(){
   if(!address){code='DEVTOOLS_FILE_TIMEOUT';throw Error('TIMEOUT');}
   code='DEVTOOLS_WS_FAILED';wire=new WebSocket(address);
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{wire.close();reject(Error('TIMEOUT'));},3000);wire.onopen=()=>{clearTimeout(timer);resolve();};wire.onerror=()=>{clearTimeout(timer);reject(Error('CONNECTION_FAILED'));};});
-  observer=new Observer(wire,kill);return await observer.collect();
- }catch{return observer?.result()||{schema:1,kind:'isolated-cdp-startup-observation',code:sandbox?'CHROME_SANDBOX_FAILED':code,sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
- finally{observer?.dispose();wire?.close();kill();if(proxy)await proxy.close();if(profile)await rm(profile,{recursive:true,force:true});}
+  observer=new Observer(wire,kill);observation=await observer.collect();
+ }catch{observation=observer?.result()||{schema:1,kind:'isolated-cdp-startup-observation',code:sandbox?'CHROME_SANDBOX_FAILED':code,sequence:[],site_navigations:0,outbound_forwarding:0,target_resumes:0};}
+ const captured=freezeObservation(observation);
+ const cleanup=await cleanupDiagnostic({observer,wire,proc,tracked,proxy,profile,removeProfile:p=>rm(p,{recursive:true,force:true})});
+ return finishObservation(captured,cleanup);
 }
-if(process.argv[1]===new URL(import.meta.url).pathname){try{const result=await main();console.log(JSON.stringify(result));if(result.code!=='PAUSED_PAGE_OBSERVED')process.exitCode=1;}catch{console.log('{"kind":"isolated-cdp-startup-observation","code":"CLEANUP_FAILED","site_navigations":0,"outbound_forwarding":0,"target_resumes":0}');process.exitCode=1;}}
+if(process.argv[1]===new URL(import.meta.url).pathname){try{const result=await main();console.log(JSON.stringify(result));if(result.status!=='success')process.exitCode=1;}catch{console.log('{"kind":"isolated-cdp-startup-observation","code":"DIAGNOSTIC_INTERNAL_FAILED","status":"failed","site_navigations":0,"outbound_forwarding":0,"target_resumes":0}');process.exitCode=1;}}

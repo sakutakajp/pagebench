@@ -4,7 +4,7 @@
 importしません。staging/image URL、サイトURL入力、サイト遷移、転送を有効化する処理はありません。
 
 ```bash
-node --test tools/cdp-startup-diagnostic/diagnostic.test.mjs
+node --test tools/cdp-startup-diagnostic/*.test.mjs
 node --check tools/cdp-startup-diagnostic/diagnostic.mjs
 CHROME_PATH=/opt/google/chrome/chrome node tools/cdp-startup-diagnostic/diagnostic.mjs
 ```
@@ -24,11 +24,11 @@ target_resumesだけ。任意のtype文字列、URL/title/target ID/session ID�
 既知type表は公式ソースにある名前の診断分類で、実行許可ではありません。Chrome157の全typeを
 網羅する保証はなく、未掲載はTYPE_UNKNOWN_STRINGで停止します。
 
-終了コード0は「停止中のpageを観測した」のみで、実測・表示・機能・全fixture成功ではありません。
+終了コード0は「停止中のpageを観測し、cleanupも完了した」のみで、実測・表示・機能・全fixture成功ではありません。
 それ以外は1。生CDPやprofileを保存せず、profileは終了時削除。入力256KiB、イベント48件、
 Chrome起動10秒、WebSocket3秒、各CDP command2秒の上限です。
 
-ローカル検証: 合成CDP・実loopback拒否proxy等7試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
+ローカル検証: 合成CDP・実loopback拒否proxy・終了処理の計14試験成功。実Chromium154はCHROME_SANDBOX_FAILED、
 sequence=[]で停止。実Chromeでのtarget互換性は未検証です。target_resumes=0はこの診断が再開commandを
 送らない意味で、DevTools接続前のChrome内部処理を取り消せるという意味ではありません。
 
@@ -53,3 +53,21 @@ jobに置くのはこの診断と合成試験だけです。実サイトのstep�
 - https://chromedevtools.github.io/devtools-protocol/tot/Target/#method-setAutoAttach
 - https://chromedevtools.github.io/devtools-protocol/tot/Target/#type-TargetInfo
 - https://chromium.googlesource.com/chromium/src/+/lkgr/content/browser/devtools/devtools_agent_host_impl.cc
+
+## 観測保持と終了診断（ローカル修正）
+
+観測は最初のstop時、Chrome終了要求より前に固定enumだけのimmutable snapshotへ確定します。
+終了操作が失敗してもcode/sequenceを置換せず、別のcleanup.stagesへ段階別固定codeを記録します。
+観測が成功していてもcleanupに失敗が1件あればstatus=failed、終了コード1です。
+workflow側もcodeだけで成功とせずstatusを検査するローカル差分です。今回は未push/未実行です。
+
+順序は、早期停止エラーの記録→observer dispose→wire close→Chrome停止要求→close確認（最大3秒）
+→全拒否proxy close→一時profile削除です。close未確認ならPROFILE_HELD_PROCESS_UNCONFIRMEDとして
+profile削除を見送ります。削除再試行でエラーを隠すことはしません。確認対象は起動したChrome親processと
+stdioのcloseで、全Chrome子processの終了を独立に証明するものではありません。
+
+実テストは、URL等を含むエラー注入、実Node子processの停止/close、実非空dirの削除エラー、
+終了未確認時のprofile保持、snapshot改変防止、各終了段階の失敗statusと記録保持を検証します。
+Node子processによる終了順序試験をChrome起動成功として報告しません。
+旧コードのfinallyがreturn済み観測を取り消すことは確定していますが、実runのどの終了操作が
+失敗したかはログから特定できていません。ファイル削除競合等を原因と断定しません。
