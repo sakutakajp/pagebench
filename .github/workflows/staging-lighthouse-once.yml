@@ -1,6 +1,12 @@
 name: Restricted staging Lighthouse CLI (one page)
 on:
   workflow_dispatch:
+    inputs:
+      execute:
+        description: Run one staging page after the isolated fixture (otherwise diagnose only)
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -28,6 +34,7 @@ jobs:
       - name: Mandatory isolated real-Chrome fixture (zero outbound forwarding)
         run: node fixture.mjs
       - name: One restricted staging navigation, no retries
+        if: ${{ success() && inputs.execute }}
         run: node run.mjs
       - name: Small sanitized result only
         if: always()

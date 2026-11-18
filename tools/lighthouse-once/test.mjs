@@ -32,3 +32,13 @@ test('startup phases distinguish file timeout, sandbox exit, malformed data, and
  d=evidence();const url=await waitDevtools(proc,async()=>'9222\n/devtools/browser/00000000-0000-0000-0000-000000000000\n',async()=>{},d);assert.equal(url,'ws://127.0.0.1:9222/devtools/browser/00000000-0000-0000-0000-000000000000');assert.equal(d.devtools_file_valid,true);
  await assert.rejects(bounded(new Promise(()=>{}),5,'DEVTOOLS_WS_TIMEOUT'),/DEVTOOLS_WS_TIMEOUT/);assert.equal(fixedCode(Error('raw credentials'),'CDP_BOOTSTRAP'),'CDP_BOOTSTRAP_FAILED');assert.equal(fixedCode(Error('raw credentials'),'INITIAL_TARGET'),'INITIAL_TARGET_GUARD_FAILED');
 });
+test('manual workflow defaults to fixture-only; live requires explicit execute and successful fixture',async()=>{
+ const {readFile}=await import('node:fs/promises');const w=await readFile(new URL('../../.github/workflows/staging-lighthouse-once.yml',import.meta.url),'utf8');
+ assert.match(w,/workflow_dispatch:\s+inputs:\s+execute:\s+description:[^\n]+\s+type: boolean\s+required: true\s+default: false/);
+ const fixture=w.slice(w.indexOf('- name: Mandatory isolated'),w.indexOf('- name: One restricted'));
+ assert.match(fixture,/run: node fixture\.mjs/);assert.ok(!/\bif:|continue-on-error:/.test(fixture));
+ const live=w.slice(w.indexOf('- name: One restricted'),w.indexOf('- name: Small sanitized'));
+ assert.match(live,/if: \$\{\{ success\(\) && inputs\.execute \}\}/);assert.match(live,/run: node run\.mjs/);assert.ok(!/always\(\)|continue-on-error:/.test(live));
+ assert.ok(w.indexOf('run: node fixture.mjs')<w.indexOf('run: node run.mjs'));
+ assert.ok(!/secrets\.|workflow_call:|push:|schedule:|pull_request:/.test(w));
+});

@@ -142,7 +142,8 @@ in-flight中断は結果不明として止まります。新たなActions実行�
 ## 制限付きstaging Lighthouse CLI：1ページ・1回
 
 Actions → **Restricted staging Lighthouse CLI (one page)** → main の初回attemptのみ。
-対象は `https://staging.hirameki.dev/ja/` 固定です。mobile / simulate / RTT 300 ms /
+既定の `execute=false` は隔離fixtureのみで、実サイト計測をスキップします。診断時はチェックを付けずに起動してください。
+`execute=true` を明示し、fixtureが成功したときだけ、固定対象 `https://staging.hirameki.dev/ja/` を1回計測します。mobile / simulate / RTT 300 ms /
 800 kbps / CPU slowdown 6、新規profileで1回だけ。PSI/Secret/正式baselineとは独立です。
 
 Lighthouse 13.6.0・Puppeteer Core 25.18.1をlock付きで取得し、ランナー標準の正式Chrome

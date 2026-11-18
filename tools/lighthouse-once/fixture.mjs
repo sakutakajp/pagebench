@@ -29,6 +29,6 @@ try{
  await c.page.evaluate(()=>{const w=new WebSocket('wss://staging.hirameki.dev/api/private');w.onerror=()=>{};});await wait(400);
  assert.equal(handshake,false);assert.equal(c.proxy.forwarded,0);assert.equal(c.proxy.approvedConnectAttempts,0);await c.cleanup();
  await writeFile('fixture-proof.json',JSON.stringify({status:'passed',chrome,fingerprint:await fingerprint(),cases:['lighthouse-local-html','POST/API/external','popup','worker','detach','disconnect','mutation','websocket'],outbound_forwarded:0}),{mode:0o600});
- console.log(JSON.stringify({status:'fixture_passed',chrome,outbound_forwarded:0}));
+ const result={kind:'restricted-staging-lighthouse-cli',status:'fixture_passed',chrome,outbound_forwarded:0,live_pages_attempted:0,performance:null};const text=JSON.stringify(result);await writeFile('result.json',text,{mode:0o600});if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n',{flag:'a'});console.log(text);
 }catch(error){const result={...(error instanceof StartupError?{startup:error.startup}:{}),kind:'restricted-staging-lighthouse-cli',status:'fixture_failed',reason:stage,live_pages_attempted:0,performance:null};const text=JSON.stringify(result);await writeFile('result.json',text,{mode:0o600});if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n',{flag:'a'});console.log(text);process.exitCode=1;}
 finally{for(const c of contexts)await c.cleanup();}
