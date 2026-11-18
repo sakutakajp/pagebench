@@ -28,8 +28,14 @@ export function validateLhr(lhr,gateway,chrome){
  const text=JSON.stringify(lhr);if(/data:image\//i.test(text)||lhr.fullPageScreenshot?.screenshot)throw Error('IMAGE_ARTIFACT_FORBIDDEN');
  return {kind:'isolated-fixture-lighthouse',status:'passed',chrome,lighthouse:lhr.lighthouseVersion,performance:Math.round(score*100),metrics,fixture_url:FIXTURE_URL,outbound_forwarding:0,ui_resumes:gateway.stats.ui_resumes,screenshots_saved:0};
 }
+export function expectedGuardStop(mode,code,kind){
+ if(mode==='popup')return code==='UNEXPECTED_TAB'&&kind==='TAB'||['PAGE_SCOPE','UNEXPECTED_PAGE'].includes(code)&&kind==='PAGE';
+ if(mode==='worker')return code==='UNEXPECTED_TARGET'&&['WORKER','SERVICE_WORKER','SHARED_WORKER'].includes(kind);
+ if(mode==='iframe')return code==='NAVIGATION_SCOPE'||code==='UNEXPECTED_TARGET'&&kind==='IFRAME';
+ return mode==='loss'?code==='CDP_LOST':mode==='mutation'?code==='PROTECTION_MUTATION':false;
+}
 export async function runFixture(){
- let active,stage='PREREQUISITE';const cases=[];
+ let active,stage='PREREQUISITE';const cases=[],guard_stops=[];
  const close=async()=>{const c=await active?.cleanup();active=null;if(c?.status!=='complete')throw Error('FIXTURE_CLEANUP_FAILED');};
  try{
   const pre=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));if(pre.summary.version_comparability!=='SAME_VERSION'||!pre.summary.safe_fixture_modes.includes('ROOT_PAGE'))throw Error('SCOPED_GUARD_REQUIRED');
@@ -43,13 +49,13 @@ export async function runFixture(){
    if(mode==='iframe')await c.page.evaluate(()=>{const f=document.createElement('iframe');f.src='/fixture';document.body.append(f);}).catch(()=>{});
    if(mode==='loss')c.gateway.wire.close();
    if(mode==='mutation')c.gateway.send(JSON.stringify({id:99999,sessionId:c.gateway.primary,method:'Fetch.disable'}));
-   for(let i=0;i<50&&!c.gateway.stats.fatal;i++)await pause(20);if(!c.gateway.stats.fatal)throw Error('ADVERSARIAL_GUARD_FAILED');cases.push(mode+'-stopped');await close();
+   for(let i=0;i<50&&!c.gateway.stats.fatal;i++)await pause(20);if(!expectedGuardStop(mode,c.gateway.stats.fatal,c.gateway.stats.rejected_target_kind))throw Error('ADVERSARIAL_GUARD_FAILED');guard_stops.push({case:mode,code:c.gateway.stats.fatal,target_kind:c.gateway.stats.rejected_target_kind||null});cases.push(mode+'-stopped');await close();
   }
   stage='WEBSOCKET';c=await fresh();await c.page.goto(FIXTURE_URL,{waitUntil:'load',timeout:15000});let handshake=false;c.page._client().on('Network.webSocketWillSendHandshakeRequest',()=>handshake=true);await c.page.evaluate(()=>{const w=new WebSocket('wss://telemetry.invalid/socket');w.onerror=()=>{};});await pause(300);if(handshake||c.gateway.stats.fatal)throw Error('WEBSOCKET_GUARD_FAILED');cases.push('websocket-no-handshake');await close();
   stage='LIGHTHOUSE';c=await fresh();const{default:lighthouse}=await import(pathToFileURL(require.resolve('lighthouse')).href);const{SETTINGS}=await import('../lighthouse-once/guard.mjs');
   const report=await bounded(lighthouse(FIXTURE_URL,{logLevel:'silent'},{extends:'lighthouse:default',settings:SETTINGS},c.page),90000);const summary=validateLhr(report.lhr,c.gateway,c.chrome);await close();
   stage='JSON_SAVE_AND_READBACK';const text=JSON.stringify(report.lhr);await writeFile('fixture-lighthouse.lhr.tmp',text,{mode:0o600});await rename('fixture-lighthouse.lhr.tmp','fixture-lighthouse.lhr.json');const readback=await readFile('fixture-lighthouse.lhr.json','utf8');if(readback!==text||JSON.parse(readback).categories.performance.score!==report.lhr.categories.performance.score)throw Error('READBACK_FAILED');
-  const result={...summary,cases,cleanup:'complete',json_readback:true,report_sha256:createHash('sha256').update(readback).digest('hex')};await writeFile('fixture-lighthouse-summary.json',JSON.stringify(result),{mode:0o600});return result;
- }catch(error){const cleanupStatus=await active?.cleanup();return {kind:'isolated-fixture-lighthouse',status:'failed',stage,...(error.fixed?{startup:error.fixed}:{}),cases,cleanup:cleanupStatus?.status||'not-started',outbound_forwarding:0,live_pages_attempted:0,json_report_saved:false};}
+  const result={...summary,cases,guard_stops,cleanup:'complete',json_readback:true,report_sha256:createHash('sha256').update(readback).digest('hex')};await writeFile('fixture-lighthouse-summary.json',JSON.stringify(result),{mode:0o600});return result;
+ }catch(error){const cleanupStatus=await active?.cleanup();return {kind:'isolated-fixture-lighthouse',status:'failed',stage,...(error.fixed?{startup:error.fixed}:{}),cases,guard_stops,cleanup:cleanupStatus?.status||'not-started',outbound_forwarding:0,live_pages_attempted:0,json_report_saved:false};}
 }
 if(process.argv[1]===new URL(import.meta.url).pathname){try{const result=await runFixture();console.log(JSON.stringify(result));await writeFile('fixture-lighthouse-status.json',JSON.stringify(result),{mode:0o600});if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+JSON.stringify(result)+'\n```\n');if(result.status!=='passed')process.exitCode=1;}catch{console.log('{"kind":"isolated-fixture-lighthouse","status":"failed","stage":"INTERNAL_FAILED"}');process.exitCode=1;}}

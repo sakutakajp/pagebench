@@ -39,17 +39,17 @@ export class FixtureGateway extends Gateway{
    if(['Target.targetCreated','Target.targetInfoChanged'].includes(m.method)){
     const t=m.params?.targetInfo;if(!t||!valid(t.targetId)){this.fail('INVALID_TARGET');return;}
     if(t.type==='browser'){this.forward(m);return;}
-    if(t.type==='tab'){if(this.createdPage&&!this.tabIds.has(t.targetId)||this.tabIds.size>=3&&!this.tabIds.has(t.targetId)){this.stats.extra_targets++;this.fail('UNEXPECTED_TAB');return;}this.tabIds.add(t.targetId);return;}
+    if(t.type==='tab'){if(this.createdPage&&!this.tabIds.has(t.targetId)||this.tabIds.size>=3&&!this.tabIds.has(t.targetId)){this.stats.extra_targets++;this.stats.rejected_target_kind='TAB';this.fail('UNEXPECTED_TAB');return;}this.tabIds.add(t.targetId);return;}
     if(t.type==='browser_ui'){if(this.uiIds.size>=4&&!this.uiIds.has(t.targetId)){this.fail('UI_LIMIT');return;}return;}
-    if(t.type!=='page'){this.stats.extra_targets++;this.fail('UNEXPECTED_TARGET');return;}
-    if(this.pageInfo&&t.targetId!==this.pageInfo.targetId||this.createdPage&&t.targetId!==this.createdPage||t.url&&!['about:blank',FIXTURE_URL].includes(t.url)){this.fail('PAGE_SCOPE');return;}
+    if(t.type!=='page'){this.stats.extra_targets++;this.stats.rejected_target_kind=({worker:'WORKER',service_worker:'SERVICE_WORKER',shared_worker:'SHARED_WORKER',iframe:'IFRAME'})[t.type]||'UNKNOWN';this.fail('UNEXPECTED_TARGET');return;}
+    if(this.pageInfo&&t.targetId!==this.pageInfo.targetId||this.createdPage&&t.targetId!==this.createdPage||t.url&&!['about:blank',FIXTURE_URL].includes(t.url)){this.stats.rejected_target_kind='PAGE';this.fail('PAGE_SCOPE');return;}
     if(m.method==='Target.targetCreated'){if(this.pageCreatedEvent&&this.pageCreatedEvent.params.targetInfo.targetId!==t.targetId){this.fail('UNEXPECTED_PAGE');return;}this.pageCreatedEvent=m;}
     if(this.released)this.forward(m);return;
    }
    if(m.method==='Target.attachedToTarget'){
     const p=m.params,t=p?.targetInfo;if(!t||!valid(t.targetId)||!valid(p.sessionId)){this.fail('INVALID_TARGET');return;}
     if(t.type==='browser_ui'){if(m.sessionId||!p.waitingForDebugger||this.uiIds.has(t.targetId)||this.sessions.has(p.sessionId)){this.fail('UI_NOT_QUARANTINED');return;}this.uiIds.add(t.targetId);this.sessions.set(p.sessionId,{ready:false,internalUI:true,target:t.targetId});return;}
-    if(t.type!=='page'){this.stats.extra_targets++;this.fail('UNEXPECTED_TARGET');return;}
+    if(t.type!=='page'){this.stats.extra_targets++;this.stats.rejected_target_kind=({worker:'WORKER',service_worker:'SERVICE_WORKER',shared_worker:'SHARED_WORKER',iframe:'IFRAME'})[t.type]||'UNKNOWN';this.fail('UNEXPECTED_TARGET');return;}
     if(this.primary){if(this.auxRequest&&t.targetId===this.createdPage&&this.sessions.get(this.primary)?.ready&&!this.auxEvent){this.auxEvent=m;this.releaseAux();return;}this.fail('UNEXPECTED_PAGE_SESSION');return;}
     await this.protectPage(m);return;
    }
