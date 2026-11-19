@@ -4,6 +4,16 @@ export const FIXTURE_URL='http://127.0.0.1:47500/fixture';
 const HTML='<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Isolated fixture</title><link rel="icon" href="data:,"><script src="/fixture.js" defer></script></head><body><main><h1>Isolated Lighthouse fixture</h1><p>Known local content only.</p></main></body></html>';
 const CLIENT_LABELS=new Set(['Browser.getVersion','Browser.getWindowForTarget','Browser.getWindowBounds','Browser.setDownloadBehavior','Target.getTargetInfo','Target.getBrowserContexts','Target.setAutoAttach','Target.setDiscoverTargets','Target.createTarget','Target.attachToTarget','Target.detachFromTarget','Runtime.runIfWaitingForDebugger','Fetch.disable','Security.setIgnoreCertificateErrors']);
 const valid=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(s);
+// Metadata only: never parse, stringify, retain or coerce a rejected CDP payload.
+export function inputLimitDiagnostic(raw){
+ const text=typeof raw==='string';if(text&&raw.length<=1048576)return null;
+ return Object.freeze({direction:'CHROME_TO_GUARD',violation:text?'OVERSIZE_TEXT':'NON_TEXT',length_bucket:!text?'NOT_TEXT':raw.length<=2097152?'GT_1M_LE_2M':raw.length<=4194304?'GT_2M_LE_4M':'GT_4M',message_role:'UNKNOWN_PREPARSE'});
+}
+export function safeInputLimitDiagnostic(value){
+ if(!value||value.direction!=='CHROME_TO_GUARD'||value.message_role!=='UNKNOWN_PREPARSE'||!(value.violation==='NON_TEXT'&&value.length_bucket==='NOT_TEXT'||value.violation==='OVERSIZE_TEXT'&&['GT_1M_LE_2M','GT_2M_LE_4M','GT_4M'].includes(value.length_bucket)))return null;
+ return{direction:'CHROME_TO_GUARD',violation:value.violation,length_bucket:value.length_bucket,message_role:'UNKNOWN_PREPARSE'};
+}
+
 export class FixtureGateway extends Gateway{
  get documentURL(){return FIXTURE_URL;}
  fetchPatterns(){return[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*',requestStage:'Response'}];}
@@ -30,7 +40,7 @@ export class FixtureGateway extends Gateway{
  async receive(raw){
   if(this.stopping)return;
   try{
-   if(typeof raw!=='string'||raw.length>1048576){this.fail('CDP_INPUT_LIMIT');return;}const m=JSON.parse(raw);
+   if(typeof raw!=='string'||raw.length>1048576){this.stats.cdp_input_diagnostic??=inputLimitDiagnostic(raw);this.fail('CDP_INPUT_LIMIT');return;}const m=JSON.parse(raw);
    if(this.pending.has(m.id)){await super.receive(raw);return;}
    if(this.client.has(m.id)){
     const method=this.client.get(m.id);this.client.delete(m.id);

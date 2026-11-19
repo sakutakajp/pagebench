@@ -22,6 +22,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'
+      - name: Locked fixture-only dependencies
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
       - name: Synthetic and loopback-only tests
         run: |
           node --check tools/cdp-startup-diagnostic/diagnostic.mjs
@@ -39,10 +42,6 @@ jobs:
           const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
           await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
           JS
-      - name: Locked fixture-only dependencies
-        if: steps.capture.outputs.fixture_ready == 'true'
-        working-directory: tools/lighthouse-once
-        run: npm ci --ignore-scripts
       - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
         if: steps.capture.outputs.fixture_ready == 'true'
         env:
