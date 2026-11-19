@@ -1,0 +1,151 @@
+name: Option 1 staging ja one authorized attempt
+on:
+  push:
+    branches:
+      - diag/cdp-isolated-once-20261118-b651ddd
+    paths:
+      - .github/workflows/staging-option1-authorized-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-option1-staging-ja-one-authorized-attempt
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: option1 staging ja once (20261119-a1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Synthetic and loopback-only tests
+        id: unit
+        run: |
+          node --check tools/cdp-startup-diagnostic/diagnostic.mjs
+          node --check tools/cdp-startup-diagnostic/cleanup.mjs
+          node --test tools/cdp-startup-diagnostic/*.test.mjs
+      - name: Compare global page capture and response-scoped capture
+        id: capture
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Locked fixture-only dependencies
+        if: steps.capture.outputs.fixture_ready == 'true'
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        id: closed
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        id: memory
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Actual request and response path on closed loopback fixture
+        id: response
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: Passive Font response monitor closed proof
+        id: fonts
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
+      - name: Strict admission for the one authorized staging attempt
+        id: admission
+        if: success()
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+          EXPECTED_REF: refs/heads/diag/cdp-isolated-once-20261118-b651ddd
+          EXPECTED_SUBJECT: 'diagnostic: option1 staging ja once (20261119-a1)'
+        run: |
+          node --input-type=module <<'JS'
+          import {readFile,writeFile,appendFile} from 'node:fs/promises';
+          import {execFileSync} from 'node:child_process';
+          import {createHash} from 'node:crypto';
+          import {safetyFingerprint} from './tools/cdp-startup-diagnostic/proof.mjs';
+          const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+          const load=async p=>JSON.parse(await readFile(p,'utf8'));
+          try {
+            const steps=JSON.parse(process.env.STEP_OUTCOMES);
+            if(['unit','capture','closed','memory','response','fonts'].some(k=>steps[k]?.outcome!=='success')||steps.capture.outputs?.fixture_ready!=='true')throw Error();
+            const sha=process.env.GITHUB_SHA;
+            if(!/^[a-f0-9]{40}$/.test(sha)||git('rev-parse','HEAD')!==sha||git('rev-parse','HEAD^')!=='68fa2e3a0589228d15745b4d8a714dd4d0762ffe'||git('diff','--name-only','HEAD^','HEAD')!=='.github/workflows/cdp-isolated-once.yml\n.github/workflows/staging-option1-authorized-once.yml')throw Error();
+            if(process.env.GITHUB_REF!==process.env.EXPECTED_REF||process.env.GITHUB_EVENT_NAME!=='push'||process.env.GITHUB_RUN_ATTEMPT!=='1'||git('log','-1','--format=%s')!==process.env.EXPECTED_SUBJECT)throw Error();
+            const [fixture,memory,response,font]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json','response-path-proof.json','font-observed-proof.json'].map(load));
+            const fingerprint=await safetyFingerprint();
+            if([fixture,memory,response].some(p=>p.status!=='passed'||p.run_sha!==sha||p.safety_fingerprint!==fingerprint||p.outbound_forwarding!==0))throw Error();
+            if(!/^Chrome\/\d+\.\d+\.\d+\.\d+$/.test(fixture.chrome)||[memory,response].some(p=>p.chrome!==fixture.chrome)||fixture.cleanup!=='complete'||fixture.json_readback!==true||fixture.ui_resumes!==0||memory.continued_requests!==0||memory.blocked_requests<3)throw Error();
+            const guards=['positive-render','POST-and-external-denied','popup-stopped','worker-stopped','iframe-stopped','loss-stopped','mutation-stopped','websocket-no-handshake'];
+            if(JSON.stringify(fixture.cases)!==JSON.stringify(guards))throw Error();
+            if(JSON.stringify(response.cases?.map(c=>c.case))!==JSON.stringify(['parallel_success','network','missing_metadata','redirect'])||response.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const names=['font_ok','font_status','font_bad_mime','font_private','font_disconnect','font_cors','font_redirect','font_missing_finish','font_wrong_session','font_mismatch_url','font_denied','font_write','font_credentials','font_late_final_failure','guard_popup','guard_worker','guard_loss','guard_mutation','guard_websocket'];
+            if(font.status!=='passed'||font.outbound_forwarding!==0||font.live_pages_attempted!==0||font.json_readback!==true||JSON.stringify(font.cases?.map(c=>c.case))!==JSON.stringify(names)||font.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const bytes=await readFile('font-observed-lighthouse-report.json');
+            const report=JSON.parse(bytes.toString('utf8'));
+            if(createHash('sha256').update(bytes).digest('hex')!==font.report_sha256||JSON.stringify(report)!==JSON.stringify(font.lighthouse))throw Error();
+            const f=report.fonts,t=report.settings?.throttling;
+            if(report.status!=='adopted'||report.chrome!==fixture.chrome||report.lighthouse!=='13.6.0'||report.cleanup!=='complete'||report.outbound_forwarding!==0||report.url_identity_validated!==true||report.screenshots_saved!==0||report.settings.formFactor!=='mobile'||report.settings.throttlingMethod!=='simulate'||t.rttMs!==300||t.throughputKbps!==800||t.cpuSlowdownMultiplier!==6)throw Error();
+            if(!f?.adoptable||f.expected<1||f.verified!==f.expected||f.unbound!==0||f.incomplete!==0||f.fatal!==null||f.phase!=='SEALED'||f.minimum_required!==1||f.observation!=='VERIFIED_FONTS'||f.after_seal_events!==0||report.measurement_boundary!=='AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE')throw Error();
+            const late=font.cases.find(c=>c.case==='font_late_final_failure');
+            if(late.pre_final_adoptable!==true||late.finalization_rejected!==true||late.adoptable!==false||late.performance!==null)throw Error();
+            const result={kind:'one-shot-admission',status:'passed',workflow_sha:sha,measuring_baseline:'68fa2e3a0589228d15745b4d8a714dd4d0762ffe',chrome:fixture.chrome,closed_cases:font.cases.length,verified_fonts:f.verified,live_navigation_limit:1};
+            await writeFile('one-shot-admission.json',JSON.stringify(result),{mode:0o600});
+            await appendFile(process.env.GITHUB_OUTPUT,'ready=true\n');
+            console.log(JSON.stringify(result));
+          } catch {
+            console.log('{"kind":"one-shot-admission","status":"rejected","reason":"CLOSED_PROOF_OR_SCOPE_INVALID"}');
+            process.exitCode=1;
+          }
+          JS
+      - name: Exactly one authorized staging ja navigation
+        if: >-
+          success() && steps.admission.outputs.ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.event.head_commit.message == 'diagnostic: option1 staging ja once (20261119-a1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-once.mjs --execute
+      - name: Fixed-enum capture comparison only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: option1-staging-ja-one-authorized-attempt
+          path: |
+            scoped-capture-comparison.json
+            staging-memory-proof.json
+            response-path-proof.json
+            font-observed-proof.json
+            font-observed-lighthouse-report.json
+            one-shot-admission.json
+            staging-lighthouse-status.json
+            staging-lighthouse-report.json
+          retention-days: 3
+          if-no-files-found: ignore

@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - diag/cdp-isolated-once-20261118-b651ddd
+    paths-ignore:
+      - .github/workflows/staging-option1-authorized-once.yml
 permissions:
   contents: read
 concurrency:
