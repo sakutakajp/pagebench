@@ -12,7 +12,7 @@ export function denyCategory(request,type){let u;try{u=new URL(request.url);}cat
 export class StagingGateway extends FixtureGateway{
  get documentURL(){return TARGET;}
  fetchPatterns(){return requestAndNonFontResponses();}
- beginCleanup(){this.fonts.beginCleanup();}
+ beginCleanup(){super.beginCleanup();this.fonts.beginCleanup();}
  networkUrl(url){return url;}
  observeFontEvent(m){const p=m.params||{};this.fonts.observe(m.sessionId,m.method,{...p,request:p.request?{...p.request,url:this.networkUrl(p.request.url)}:undefined,response:p.response?{...p.response,url:this.networkUrl(p.response.url)}:undefined});}
 

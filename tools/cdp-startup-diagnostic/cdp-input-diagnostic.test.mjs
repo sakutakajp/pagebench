@@ -96,6 +96,9 @@ async function offlineCliFixture(){
   await import(entryURL);
   const text=await fs.readFile(join(dir,'staging-lighthouse-status.json'),'utf8');
   const status=JSON.parse(text);assert.equal(logs.length,1);assert.deepEqual(logs[0],status);
+  if(scenario==='default_dry')assert.equal(status.cdp_stages,undefined);
+  else{assert.equal(status.cdp_stages.cause,'NOT_ATTRIBUTED');assert(status.cdp_stages.events.length<=64);assert(!JSON.stringify(status.cdp_stages).includes('SYNTHETIC_PRIVATE'));}
+  if(scenario==='stale_proof')assert.equal(status.cdp_stages.observation,'NO_CONTEXT');
   assert.equal((await fs.stat(join(dir,'staging-lighthouse-status.json'))).mode&0o777,0o600);
   const files=await fs.readdir(dir);const adopted=['positive','exact_boundary'].includes(scenario);
   if(adopted){
@@ -103,6 +106,7 @@ async function offlineCliFixture(){
    const reportText=await fs.readFile(join(dir,'staging-lighthouse-report.json'),'utf8');
    assert.equal(status.report_sha256,createHash('sha256').update(reportText).digest('hex'));
    assert.equal(JSON.parse(reportText).measurement_boundary,'AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE');
+   assert.deepEqual(JSON.parse(reportText).cdp_stages,status.cdp_stages);
   }else{
    assert.equal(status.performance,null);assert(!files.includes('staging-lighthouse-report.json'));assert(!files.includes('staging-lighthouse-report.tmp'));
   }
