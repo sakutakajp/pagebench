@@ -4,12 +4,11 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
 import {safeVisibleEvidence} from './visible-evidence.mjs';
 import {liveReport} from './staging-once.mjs';
 import {safeInputLimitDiagnostic} from './fixture-gateway.mjs';
 import {STAGING_TARGET} from './staging-gateway.mjs';
-const workflow='.github/workflows/staging-visible-evidence-once-20261120.yml';
+const workflow='.github/workflows/staging-visible-baseline-once-20261120.yml';
 const yaml=await readFile(new URL('../../'+workflow,import.meta.url),'utf8');
 function wrapper(s){return s.split('      - name: Exactly one authorized staging ja navigation\n')[1].split("          node --input-type=module <<'JS'\n")[1].split('\n          JS')[0].split('\n').map(l=>l.slice(10)).join('\n');}
 const code=wrapper(yaml);
@@ -86,7 +85,7 @@ add('native記録欠損でもstdoutを代替証拠にしない','readFileで合�
 add('壊れたnative JSONは固定失敗に閉じる','JSON構文エラー文字列',async()=>{assert.equal((await execute(fail(),{raw:'PRIVATE_INVALID_JSON'})).result.reason,'PUBLIC_RESULT_VALIDATION_FAILED');});
 add('stage記録不正は採点と診断の成功にすり替えない','cdp_stagesのeventを未知値にする',async()=>{const d=fail();d.cdp_stages.events=[{sequence:1,event:'PRIVATE_EVENT'}];assert.equal((await execute(d)).result.status,'INVALID_RESULT');});
 add('遅延runtimeをrejectに誤帰属しない','REJECTのみの履歴にPAGE_HUNGを混入',async()=>{const d=fail();d.response_diagnostic.counts={LIGHTHOUSE_START:1,LIGHTHOUSE_REJECT:1};d.runtime_error_code='PAGE_HUNG';const{result}=await execute(d);assert.equal(result.lighthouse_outcome,'REJECTED');assert.equal(result.runtime_error_code,'UNKNOWN');});
-add('公開診断以外の実行・採否・通信コードを変えていない','baseのworkflowと診断部分を除去してbyte比較',()=>{const baseline=execFileSync('git',['show','402f2d5ed7842dc6de40cd2cf038e026e43ba6ba:.github/workflows/staging-trace-read-once-20261120.yml'],{encoding:'utf8'});const strip=s=>s.replace("import{safeVisibleEvidence}from'./tools/cdp-startup-diagnostic/visible-evidence.mjs';\n",'').replace('visible:safeVisibleEvidence(d.visible_diagnostic),','').replace(/\/\/ Only the producer[\s\S]*?(?=function traceRead\(p\))/,'').replace('...execution(d),',"reason:d.status==='success'?null:traceFailures.has(d.reason)?d.reason:'OTHER_FIXED_FAILURE',");assert.equal(strip(wrapper(yaml)),wrapper(baseline));});
+add('公開診断以外の実行・採否・通信コードを変えていない','既知hashの同梱baselineと診断部分を除去してbyte比較',async()=>{const baseline=await readFile(new URL('../../.github/workflows/staging-trace-read-once-20261120.yml',import.meta.url),'utf8');assert.equal(createHash('sha256').update(baseline).digest('hex'),'1ef330f2d8ee34630a6ee566077426fa477245dbe7ac9e4485ff5284347a2583');const strip=s=>s.replace("import{safeVisibleEvidence}from'./tools/cdp-startup-diagnostic/visible-evidence.mjs';\n",'').replace('visible:safeVisibleEvidence(d.visible_diagnostic),','').replace(/\/\/ Only the producer[\s\S]*?(?=function traceRead\(p\))/,'').replace('...execution(d),',"reason:d.status==='success'?null:traceFailures.has(d.reason)?d.reason:'OTHER_FIXED_FAILURE',");assert.equal(strip(wrapper(yaml)),wrapper(baseline));});
 assert.equal(cases.length,50);
 for(const[c,i]of cases.map((c,i)=>[c,i]))test(`investigation ${String(i+1).padStart(2,'0')}: ${c.hypothesis} [${c.condition}]`,c.check);
 
