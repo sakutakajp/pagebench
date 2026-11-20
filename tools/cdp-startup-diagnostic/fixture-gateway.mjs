@@ -1,3 +1,4 @@
+import{TraceReadBudget}from'./trace-read-budget.mjs';
 import{CdpStageJournal}from'./cdp-stage-journal.mjs';
 // Fixture-only transport. There is no HTTP client, upstream proxy or continueRequest path.
 import{Gateway}from'../lighthouse-once/gateway.mjs';import{captureParams}from'./scoped-capture.mjs';
@@ -18,10 +19,11 @@ export function safeInputLimitDiagnostic(value){
 export class FixtureGateway extends Gateway{
  get documentURL(){return FIXTURE_URL;}
  fetchPatterns(){return[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*',requestStage:'Response'}];}
- constructor(wire,kill){super(wire,kill);this.stageJournal=new CdpStageJournal();this.client=new Map();this.tabIds=new Set();this.uiIds=new Set();this.pageInfo=null;this.pageAttachment=null;this.pageCreatedEvent=null;this.primary=null;this.createdPage=null;this.createRequest=null;this.createReply=null;this.released=false;this.auxRequest=null;this.auxReply=null;this.auxEvent=null;this.stats.fixture_documents=0;this.stats.ui_resumes=0;this.stats.extra_targets=0;}
+ constructor(wire,kill){super(wire,kill);this.stageJournal=new CdpStageJournal();this.traceReads=new TraceReadBudget(code=>this.fail(code));this.client=new Map();this.tabIds=new Set();this.uiIds=new Set();this.pageInfo=null;this.pageAttachment=null;this.pageCreatedEvent=null;this.primary=null;this.createdPage=null;this.createRequest=null;this.createReply=null;this.released=false;this.auxRequest=null;this.auxReply=null;this.auxEvent=null;this.stats.fixture_documents=0;this.stats.ui_resumes=0;this.stats.extra_targets=0;}
  stageObserve(method,...args){try{return this.stageJournal?.[method](...args);}catch{try{this.stageJournal?.limit('INTERNAL_ERROR');}catch{}return null;}}
- fail(code){try{if(!this.stopping)this.stageObserve('stop');}finally{return super.fail(code);}}
- beginCleanup(){this.stageObserve('cleanup');}
+ fail(code){try{if(!this.stopping){this.stageObserve('stop');this.traceReads?.stop();}}finally{return super.fail(code);}}
+ beginCleanup(){this.stageObserve('cleanup');this.traceReads.beginCleanup();}
+ dispose(){this.traceReads.dispose();return super.dispose();}
  forward(m){if(this.onmessage)this.onmessage(JSON.stringify(m));else this.queue.push(m);}
  flush(){for(const m of this.queue.splice(0))this.forward(m);}
  async releasePage(){if(this.released||!this.createReply||!this.primary||!this.sessions.get(this.primary)?.ready)return;
@@ -47,7 +49,7 @@ export class FixtureGateway extends Gateway{
    if(typeof raw!=='string'||raw.length>1048576){this.stats.cdp_input_diagnostic??=inputLimitDiagnostic(raw);this.fail('CDP_INPUT_LIMIT');return;}const m=JSON.parse(raw);
    if(this.pending.has(m.id)){await super.receive(raw);return;}
    if(this.client.has(m.id)){
-    this.stageObserve('reply',m);const method=this.client.get(m.id);this.client.delete(m.id);
+    this.traceReads.reply(m);if(this.stopping)return;this.stageObserve('reply',m);const method=this.client.get(m.id);this.client.delete(m.id);
     if(method==='Target.createTarget'){if(m.error||!valid(m.result?.targetId)){this.fail('PAGE_CREATE_FAILED');return;}this.createdPage=m.result.targetId;this.createReply=m;await this.releasePage();return;}
     if(method==='Target.attachToTarget'){if(m.error||!valid(m.result?.sessionId)){this.fail('AUXILIARY_BINDING_FAILED');return;}this.auxReply=m;this.releaseAux();return;}
     this.forward(m);return;
@@ -77,11 +79,11 @@ export class FixtureGateway extends Gateway{
    if(m.method==='Fetch.requestPaused'){if(m.sessionId!==this.primary){this.fail('FETCH_SCOPE');return;}await this.request(m.params,m.sessionId);return;}
    if(m.method==='Network.webSocketWillSendHandshakeRequest'){this.fail('WEBSOCKET_PROTECTION_FAILED');return;}
    if(m.sessionId&&!this.sessions.get(m.sessionId)?.ready)return;
-   this.stageObserve('event',m);this.forward(m);
+   this.traceReads.event(m);if(this.stopping)return;this.stageObserve('event',m);this.forward(m);
   }catch{this.fail('GATEWAY_INTERNAL_FAILED');}
  }
  send(raw){if(this.stopping)return;
-  try{const m=JSON.parse(raw),p=m.params||{},s=this.sessions.get(m.sessionId);this.lastClientCommand=CLIENT_LABELS.has(m.method)?m.method:'OTHER';
+  try{let m=JSON.parse(raw);const p=m.params||{},s=this.sessions.get(m.sessionId);this.lastClientCommand=CLIENT_LABELS.has(m.method)?m.method:'OTHER';
    if(m.sessionId&&(!s?.ready||s.internalUI)){this.fail('UNGUARDED_SESSION_COMMAND');return;}
    if(['Network.setCookie','Network.setCookies','Storage.setCookies'].includes(m.method)){this.fail('AUTH_STATE_MUTATION');return;}
    if(m.method==='Network.setExtraHTTPHeaders'){const headers=Object.entries(p.headers||{});const kept=headers.filter(([name])=>!/^(cookie|authorization|proxy-authorization|x-api-key|x-goog-api-key|referer)$/i.test(name));this.stats.sanitized_extra_headers=(this.stats.sanitized_extra_headers||0)+headers.length-kept.length;m.params={...p,headers:Object.fromEntries(kept)};}
@@ -99,8 +101,9 @@ export class FixtureGateway extends Gateway{
    if(m.method==='Runtime.runIfWaitingForDebugger'&&!s?.ready){this.fail('EARLY_RESUME');return;}
    if(!m.sessionId&&!['Browser.getVersion','Target.getBrowserContexts','Target.setAutoAttach','Target.setDiscoverTargets','Target.createTarget','Target.attachToTarget','Target.detachFromTarget','Browser.getWindowForTarget','Browser.getWindowBounds'].includes(m.method)){this.fail('ROOT_COMMAND_SCOPE');return;}
    if(m.method==='Browser.getWindowForTarget'&&p.targetId!==this.createdPage){this.fail('ROOT_COMMAND_SCOPE');return;}
+   const trace=this.traceReads.prepare(m,!!s?.ready&&!s.internalUI);if(!trace||this.stopping)return;m=trace.message;
    const stage=this.stageObserve('begin',m,!!s?.ready&&!s.internalUI);this.client.set(m.id,m.method);
-   try{this.wire.send(JSON.stringify(m));this.stageObserve('sent',stage);}catch(error){this.stageObserve('cancel',stage);throw error;}
+   try{this.wire.send(JSON.stringify(m));this.traceReads.sent(trace.ticket);this.stageObserve('sent',stage);}catch(error){this.stageObserve('cancel',stage);throw error;}
    if(m.method==='Target.setAutoAttach'&&!m.sessionId)this.flush();
   }catch{this.fail('CLIENT_COMMAND_FORMAT');}
  }

@@ -31,10 +31,13 @@ async function offlineCliFixture(){
  if(scenario==='stale_proof')proofFiles['staging-memory-proof.json']={...common,safety_fingerprint:'0'.repeat(64)};
  const writes=[],order=[],logs=[];let cleanupCalls=0,openCalls=0,gets=0,parsesAtReject=null,cleanupResult;
  const proxy={stats:{fatal:null,resolved_hosts:0},enable(){order.push('PROXY_MEMORY_ENABLE');},disable(){order.push('PROXY_MEMORY_DISABLE');}};
- const wire={send(raw){const m=JSON.parse(raw);queueMicrotask(()=>wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result:{}})));},close(){}};
+ const wire={send(raw){const m=JSON.parse(raw);queueMicrotask(()=>{if(m.method==='Tracing.end')wire.onmessage(JSON.stringify({sessionId:m.sessionId,method:'Tracing.tracingComplete',params:{stream:'PRIVATE_TRACE'}}));const result=m.method==='IO.read'?{data:'{\"traceEvents\":[]}',eof:true}:{};wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result}));});},close(){}};
  const gateway=new StagingGateway(wire,()=>order.push('EMERGENCY'));
  gateway.primary='P';gateway.sessions.set('P',{ready:true,frame:'FRAME'});gateway.released=true;
  Object.assign(gateway.stats,{live_documents:1,http_status:200,html200:true,html_validated:true});
+ const clientReplies=new Map();let clientId=100;gateway.onmessage=raw=>{const m=JSON.parse(raw),pending=clientReplies.get(m.id);if(pending){clientReplies.delete(m.id);pending(m.result);}};
+ const clientCommand=(method,params={})=>new Promise(resolve=>{const id=++clientId;clientReplies.set(id,resolve);gateway.send(JSON.stringify({id,sessionId:'P',method,params}));});
+ const ownTrace=async()=>{await clientCommand('Tracing.start',{transferMode:'ReturnAsStream'});await clientCommand('Tracing.end');await clientCommand('IO.read',{handle:'PRIVATE_TRACE'});await clientCommand('IO.close',{handle:'PRIVATE_TRACE'});};
  const inject=async()=>{
   const original=JSON.parse;let parsed=0;JSON.parse=(...args)=>{parsed++;return original(...args);};
   try{
@@ -53,6 +56,7 @@ async function offlineCliFixture(){
   if(cleanupResult)return cleanupResult;
   cleanupCalls++;order.push('CLEANUP');gateway.beginCleanup();
   if(scenario==='after_seal')await inject();
+  gateway.dispose();
   cleanupResult={status:scenario==='cleanup_failure'?'failed':'complete'};return cleanupResult;
  }};
  const report={requestedUrl:'https://staging.hirameki.dev/ja/',finalUrl:'https://staging.hirameki.dev/ja/',finalDisplayedUrl:'https://staging.hirameki.dev/ja/',lighthouseVersion:'13.6.0',fetchTime:'2026-11-19T00:00:00.000Z',environment:{benchmarkIndex:100},configSettings:{formFactor:'mobile',throttlingMethod:'simulate',throttling:{rttMs:300,throughputKbps:800,cpuSlowdownMultiplier:6},disableStorageReset:false,screenEmulation:{mobile:true,width:360,height:640,deviceScaleFactor:1}},categories:{performance:{score:0.75}},audits:Object.fromEntries(['first-contentful-paint','largest-contentful-paint','total-blocking-time','cumulative-layout-shift','speed-index'].map(k=>[k,{numericValue:1}]))};
@@ -68,6 +72,7 @@ async function offlineCliFixture(){
   pinnedTunnel:async()=>proxy,
   lighthouse:async()=>{
    order.push('LIGHTHOUSE_MEMORY');
+   if(['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
    if(['nontext','oversize','nontext_then_oversize','cleanup_failure'].includes(scenario))await inject();
    if(scenario==='exact_boundary'){
     const empty=JSON.stringify({id:99,result:{value:''}});
@@ -103,10 +108,12 @@ async function offlineCliFixture(){
   const files=await fs.readdir(dir);const adopted=['positive','exact_boundary'].includes(scenario);
   if(adopted){
    assert.equal(status.status,'success');assert.equal(status.json_readback,true);
+   assert.equal(status.trace_read.observation,'OWN_TRACE');assert.equal(status.trace_read.reads,1);assert.equal(status.trace_read.completed,1);assert.equal(status.trace_read.close_confirmed,true);assert.equal(status.trace_read.failure,null);
    const reportText=await fs.readFile(join(dir,'staging-lighthouse-report.json'),'utf8');
    assert.equal(status.report_sha256,createHash('sha256').update(reportText).digest('hex'));
    assert.equal(JSON.parse(reportText).measurement_boundary,'AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE');
    assert.deepEqual(JSON.parse(reportText).cdp_stages,status.cdp_stages);
+   assert.deepEqual(JSON.parse(reportText).trace_read,status.trace_read);
   }else{
    assert.equal(status.performance,null);assert(!files.includes('staging-lighthouse-report.json'));assert(!files.includes('staging-lighthouse-report.tmp'));
   }
