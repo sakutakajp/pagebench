@@ -49,8 +49,10 @@ async function offlineCliFixture(){
   parsesAtReject=parsed;
   if(scenario==='nontext_then_oversize')await gateway.receive(' '.repeat(1048577));
  };
- const ctx={gateway,proxy,chrome:common.chrome,page:{evaluate:async()=>{
+ const ctx={gateway,proxy,chrome:common.chrome,page:{url:()=> 'https://staging.hirameki.dev/ja/',evaluate:async()=>{
   order.push('FINAL_PAGE_OPERATION');if(scenario==='late_oversize')await inject();
+  if(scenario==='diagnostic_only')return{body_characters:40,headings:1,flags:{document_url_matches:false,viewport_matches_report:false,hydration:'HYDRATING'}};
+  if(scenario.startsWith('visible_'))return{body_characters:scenario==='visible_no_heading'?40:0,headings:scenario==='visible_short'?1:0,flags:{document_url_matches:true,body_text_minimum_met:scenario==='visible_no_heading',headings_present:scenario==='visible_short',hydration:'HYDRATING'}};
   return{body_characters:40,headings:1};
  }},cleanup:async()=>{
   if(cleanupResult)return cleanupResult;
@@ -72,7 +74,7 @@ async function offlineCliFixture(){
   pinnedTunnel:async()=>proxy,
   lighthouse:async()=>{
    order.push('LIGHTHOUSE_MEMORY');
-   if(['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
+   if(scenario==='diagnostic_only'||scenario.startsWith('visible_')||['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
    if(['nontext','oversize','nontext_then_oversize','cleanup_failure'].includes(scenario))await inject();
    if(scenario==='exact_boundary'){
     const empty=JSON.stringify({id:99,result:{value:''}});
@@ -105,7 +107,7 @@ async function offlineCliFixture(){
   else{assert.equal(status.cdp_stages.cause,'NOT_ATTRIBUTED');assert(status.cdp_stages.events.length<=64);assert(!JSON.stringify(status.cdp_stages).includes('SYNTHETIC_PRIVATE'));}
   if(scenario==='stale_proof')assert.equal(status.cdp_stages.observation,'NO_CONTEXT');
   assert.equal((await fs.stat(join(dir,'staging-lighthouse-status.json'))).mode&0o777,0o600);
-  const files=await fs.readdir(dir);const adopted=['positive','exact_boundary'].includes(scenario);
+  const files=await fs.readdir(dir);const adopted=['positive','exact_boundary','diagnostic_only'].includes(scenario);
   if(adopted){
    assert.equal(status.status,'success');assert.equal(status.json_readback,true);
    assert.equal(status.trace_read.observation,'OWN_TRACE');assert.equal(status.trace_read.reads,1);assert.equal(status.trace_read.completed,1);assert.equal(status.trace_read.close_confirmed,true);assert.equal(status.trace_read.failure,null);
@@ -126,6 +128,8 @@ async function offlineCliFixture(){
    if(scenario!=='after_seal')assert(order.indexOf('EMERGENCY')<order.indexOf('CLEANUP'));
    assert.equal(order.filter(x=>x==='EMERGENCY').length,1);
   }
+  if(scenario==='diagnostic_only'){assert.equal(status.status,'success');assert.equal(status.visible_diagnostic.document_url_matches,false);assert.equal(status.visible_diagnostic.viewport_matches_report,false);assert.equal(status.visible_diagnostic.hydration,'HYDRATING');}
+  if(scenario.startsWith('visible_')){assert.equal(status.reason,'LIVE_VISIBLE_CONTENT');assert.equal(cleanupCalls,1);assert.equal(status.visible_diagnostic.body_text_minimum_met,scenario==='visible_no_heading');assert.equal(status.visible_diagnostic.headings_present,scenario==='visible_short');assert.equal(status.visible_diagnostic.page_url_matches,true);assert.equal(status.visible_diagnostic.document_url_matches,true);assert.equal(status.visible_diagnostic.hydration,'HYDRATING');assert.equal(status.visible_counts,undefined);assert(!JSON.stringify(status.visible_diagnostic).includes('https:'));}
   if(scenario==='stale_proof'){assert.equal(openCalls,0);assert.equal(status.reason,'PREREQUISITE');assert.equal(status.cdp_input_diagnostic,null);assert.deepEqual(files,['staging-lighthouse-status.json']);}
   if(scenario==='default_dry'){assert.equal(openCalls,0);assert.equal(status.reason,'EXPLICIT_EXECUTE_REQUIRED');assert.deepEqual(files,['staging-lighthouse-status.json']);}
   const summary={fixture:true,scenario,status:'passed',adopted,cleanup:status.cleanup??'not-started',network_connections:0,browser_launches:0};
@@ -135,7 +139,7 @@ async function offlineCliFixture(){
  }
 }
 
-for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary']){
+for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary','visible_short','visible_no_heading','visible_both','diagnostic_only']){
  test('offline exact staging CLI: '+scenario,()=>{
   const child=spawnSync(process.execPath,['--input-type=module','-e',`(${offlineCliFixture.toString()})().catch(()=>{console.log('{"fixture":true,"status":"failed","reason":"OFFLINE_FIXTURE_ASSERTION"}');process.exitCode=1;});`],{
    env:{GITHUB_SHA:'a'.repeat(40),FIXTURE_SCENARIO:scenario,FIXTURE_ENTRY:new URL('./staging-once.mjs',import.meta.url).pathname},encoding:'utf8',timeout:15000,maxBuffer:65536,
