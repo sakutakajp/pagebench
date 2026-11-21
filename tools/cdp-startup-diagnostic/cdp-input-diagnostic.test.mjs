@@ -17,7 +17,7 @@ async function offlineCliFixture(){
  const {pathToFileURL}=await import('node:url');
  const {EventEmitter}=await import('node:events');
  const {createHash}=await import('node:crypto');
- const requested=process.env.FIXTURE_SCENARIO,observe=requested.startsWith('observe_'),scenario=observe?requested.slice(8):requested,entry=process.env.FIXTURE_ENTRY;
+ const requested=process.env.FIXTURE_SCENARIO,nuxt=requested.startsWith('nuxt_'),observe=nuxt||requested.startsWith('observe_'),scenario=nuxt?requested.slice(5):observe?requested.slice(8):requested,entry=process.env.FIXTURE_ENTRY;
  const sha='a'.repeat(40),dir=await fs.mkdtemp(join(tmpdir(),'pagebench-diagnostic-offline-'));
  const entryURL=pathToFileURL(entry).href,base=new URL('./',entryURL);
  const {safetyFingerprint}=await import(new URL('proof.mjs',base).href);
@@ -31,10 +31,10 @@ async function offlineCliFixture(){
  if(scenario==='stale_proof')proofFiles['staging-memory-proof.json']={...common,safety_fingerprint:'0'.repeat(64)};
  const writes=[],order=[],logs=[];let cleanupCalls=0,openCalls=0,gets=0,parsesAtReject=null,cleanupResult,detached=false;const paired=scenario.startsWith('detach_');
  const proxy={stats:{fatal:null,resolved_hosts:0},enable(){order.push('PROXY_MEMORY_ENABLE');},disable(){order.push('PROXY_MEMORY_DISABLE');}};
- const wire={send(raw){const m=JSON.parse(raw);if(m.method==='Target.detachFromTarget'){order.push('DETACH_FORWARDED');detached=true;}queueMicrotask(()=>{if(m.method==='Target.detachFromTarget')wire.onmessage(JSON.stringify({method:'Target.detachedFromTarget',params:{sessionId:m.params.sessionId}}));if(m.method==='Tracing.end')wire.onmessage(JSON.stringify({sessionId:m.sessionId,method:'Tracing.tracingComplete',params:{stream:'PRIVATE_TRACE'}}));const result=m.method==='Page.getFrameTree'?{frameTree:{frame:{id:'FRAME',loaderId:detached&&scenario==='detach_wrong_loader'?'LOADER2':'LOADER1',url:'https://staging.hirameki.dev/ja/'}}}:m.method==='IO.read'?{data:'{\"traceEvents\":[]}',eof:true}:{};wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result}));});},close(){}};
+ const wire={send(raw){const m=JSON.parse(raw);if(m.method==='Target.detachFromTarget'){order.push('DETACH_FORWARDED');detached=true;}queueMicrotask(()=>{if(m.method==='Target.detachFromTarget')wire.onmessage(JSON.stringify({method:'Target.detachedFromTarget',params:{sessionId:m.params.sessionId}}));if(m.method==='Tracing.end')wire.onmessage(JSON.stringify({sessionId:m.sessionId,method:'Tracing.tracingComplete',params:{stream:'PRIVATE_TRACE'}}));const result=m.method==='Page.addScriptToEvaluateOnNewDocument'?(order.push('ERROR_INSTALL'),scenario==='install_failure'?{}:{identifier:'OFFLINE_SCRIPT'}):m.method==='Runtime.evaluate'?(order.push('ERROR_SAMPLE'),{result:{value:scenario==='unobservable'?null:{coverage:'REGISTERED_WITH_PRE_READY_GAP',pre_ready_gap:true,overflow:false,events:[{source:'APP_ERROR_HOOK',error_class:'TYPE_ERROR',status_code:500,location:'UNKNOWN'}],dom:{signature:'STRUCTURAL_CANDIDATE',status_code:500}}}}):m.method==='Page.getFrameTree'?{frameTree:{frame:{id:'FRAME',loaderId:detached&&scenario==='detach_wrong_loader'?'LOADER2':'LOADER1',url:'https://staging.hirameki.dev/ja/'}}}:m.method==='IO.read'?{data:'{\"traceEvents\":[]}',eof:true}:{};wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result}));});},close(){}};
  const gateway=new StagingGateway(wire,()=>order.push('EMERGENCY'));
  gateway.createdPage='CREATED';gateway.primary='P';gateway.sessions.set('P',{ready:true,frame:'FRAME'});gateway.released=true;
- Object.assign(gateway.stats,{live_documents:1,http_status:200,html200:true,html_validated:true});
+ Object.assign(gateway.stats,{live_documents:scenario==='install_failure'?0:1,http_status:200,html200:true,html_validated:true});
  const clientReplies=new Map();let clientId=100;gateway.onmessage=raw=>{const m=JSON.parse(raw),pending=clientReplies.get(m.id);if(pending){clientReplies.delete(m.id);pending(m.result);}};
  const clientCommand=(method,params={})=>new Promise(resolve=>{const id=++clientId;clientReplies.set(id,resolve);gateway.send(JSON.stringify({id,sessionId:'P',method,params}));});
  const rootCommand=(method,params)=>new Promise(resolve=>{const id=++clientId;clientReplies.set(id,resolve);gateway.send(JSON.stringify({id,method,params}));});
@@ -66,7 +66,7 @@ async function offlineCliFixture(){
  const report={requestedUrl:'https://staging.hirameki.dev/ja/',finalUrl:'https://staging.hirameki.dev/ja/',finalDisplayedUrl:'https://staging.hirameki.dev/ja/',lighthouseVersion:'13.6.0',fetchTime:'2026-11-19T00:00:00.000Z',environment:{benchmarkIndex:100},configSettings:{formFactor:'mobile',throttlingMethod:'simulate',throttling:{rttMs:300,throughputKbps:800,cpuSlowdownMultiplier:6},disableStorageReset:false,screenEmulation:{mobile:true,width:360,height:640,deviceScaleFactor:1}},categories:{performance:{score:0.75}},audits:Object.fromEntries(['first-contentful-paint','largest-contentful-paint','total-blocking-time','cumulative-layout-shift','speed-index'].map(k=>[k,{numericValue:1}]))};
  const mockFs={
   readFile:async(p,...args)=>{if(Object.hasOwn(proofFiles,p))return JSON.stringify(proofFiles[p]);return fs.readFile(join(dir,p),...args);},
-  writeFile:async(p,data,options)=>{assert(['staging-once-attempt.json','staging-lighthouse-status.json','staging-observation-status.json','staging-lighthouse-report.tmp'].includes(p));assert.equal(options.mode,0o600);writes.push(p);return fs.writeFile(join(dir,p),data,options);},
+  writeFile:async(p,data,options)=>{assert(['staging-once-attempt.json','staging-lighthouse-status.json','staging-observation-status.json','staging-nuxt-error-status.json','staging-lighthouse-report.tmp'].includes(p));assert.equal(options.mode,0o600);writes.push(p);return fs.writeFile(join(dir,p),data,options);},
   rename:async(a,b)=>{assert.equal(a,'staging-lighthouse-report.tmp');assert.equal(b,'staging-lighthouse-report.json');return fs.rename(join(dir,a),join(dir,b));},
   appendFile:async()=>assert.fail('summary path not configured'),
  };
@@ -76,7 +76,8 @@ async function offlineCliFixture(){
   pinnedTunnel:async()=>proxy,
   lighthouse:async()=>{
    order.push('LIGHTHOUSE_MEMORY');
-   if(paired||scenario==='diagnostic_only'||scenario.startsWith('visible_')||['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
+   if(nuxt){await gateway.receive(JSON.stringify({method:'Page.frameNavigated',sessionId:'P',params:{frame:{id:'FRAME',loaderId:'LOADER1',url:'https://staging.hirameki.dev/ja/'}}}));await gateway.receive(JSON.stringify({method:'Runtime.executionContextCreated',sessionId:'P',params:{context:{id:1001,auxData:{frameId:'FRAME',isDefault:true}}}}));}
+   if(paired||scenario==='diagnostic_only'||scenario.startsWith('visible_')||['positive','unobservable','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
    if(['nontext','oversize','nontext_then_oversize','cleanup_failure'].includes(scenario))await inject();
    if(scenario==='exact_boundary'){
     const empty=JSON.stringify({id:99,result:{value:''}});
@@ -101,17 +102,19 @@ async function offlineCliFixture(){
  globalThis.fetch=()=>{throw Error('NETWORK_FORBIDDEN');};
  globalThis.WebSocket=class{constructor(){throw Error('NETWORK_FORBIDDEN');}};
  const originalLog=console.log;console.log=s=>logs.push(JSON.parse(s));
- const originalArgv=process.argv;process.argv=[process.execPath,entry,...(scenario==='default_dry'?[]:[observe?'--observe-once':'--execute'])];
+ const originalArgv=process.argv;process.argv=[process.execPath,entry,...(scenario==='default_dry'?[]:[nuxt?'--observe-nuxt-errors-once':observe?'--observe-once':'--execute'])];
  try{
   await import(entryURL);
-  const text=await fs.readFile(join(dir,observe?'staging-observation-status.json':'staging-lighthouse-status.json'),'utf8');
+  const text=await fs.readFile(join(dir,nuxt?'staging-nuxt-error-status.json':observe?'staging-observation-status.json':'staging-lighthouse-status.json'),'utf8');
   const status=JSON.parse(text);assert.equal(logs.length,1);assert.deepEqual(logs[0],status);
   if(observe){
    const files=await fs.readdir(dir);assert.equal(status.kind,'public-staging-lineage-observation');assert.equal(status.performance,null);assert.equal(status.metrics,null);assert.equal(status.formal_score,false);assert.equal(status.score_adopted,false);assert.equal(status.lighthouse_report_saved,false);assert.equal(status.external_db_write,false);
    assert(!files.includes('staging-lighthouse-report.json'));assert(!files.includes('staging-lighthouse-report.tmp'));assert(!writes.includes('staging-lighthouse-report.tmp'));assert(!JSON.stringify(status).includes('https:'));
-   assert.equal((await fs.stat(join(dir,'staging-observation-status.json'))).mode&0o777,0o600);
-   if(scenario==='positive'){assert.equal(status.status,'observation_complete');assert.equal(status.trace.reads,1);assert.equal(status.trace.close_confirmed,true);assert.equal(cleanupCalls,1);}
-   else{assert.equal(status.status,'observation_rejected');assert.equal(status.reason,scenario==='visible_short'?'LIVE_VISIBLE_CONTENT':'CDP_INPUT_LIMIT');assert.equal(cleanupCalls,1);}
+   assert.equal((await fs.stat(join(dir,nuxt?'staging-nuxt-error-status.json':'staging-observation-status.json'))).mode&0o777,0o600);
+   if(nuxt){assert.equal(status.error_observation_role,'APP_REPORTED_WITH_GAPS');if(['positive','visible_short'].includes(scenario)){assert.equal(status.nuxt_error.status,'OBSERVED_WITH_GAPS');assert.equal(status.nuxt_error.hooks.events[0].status_code,500);assert.equal(status.nuxt_error.hooks.events[0].error_class,'TYPE_ERROR');assert(order.indexOf('ERROR_SAMPLE')<order.indexOf('FINAL_PAGE_OPERATION'));}if(['nontext','unobservable','stale_proof','install_failure'].includes(scenario))assert.equal(status.nuxt_error.status,'UNKNOWN');if(scenario==='nontext')assert.equal(order.slice(order.indexOf('EMERGENCY')).includes('ERROR_SAMPLE'),false);}
+   if(scenario==='positive'||scenario==='unobservable'){assert.equal(status.status,'observation_complete');assert.equal(status.trace.reads,1);assert.equal(status.trace.close_confirmed,true);assert.equal(cleanupCalls,1);}
+   else{assert.equal(status.status,['stale_proof','install_failure'].includes(scenario)?'stopped_before_measurement':'observation_rejected');assert.equal(status.reason,scenario==='visible_short'?'LIVE_VISIBLE_CONTENT':scenario==='stale_proof'?'PREREQUISITE':scenario==='install_failure'?'ERROR_OBSERVER_INSTALL':'CDP_INPUT_LIMIT');assert.equal(cleanupCalls,scenario==='stale_proof'?0:1);}
+   if(scenario==='install_failure'){assert(!order.includes('PROXY_MEMORY_ENABLE'));assert(!order.includes('LIGHTHOUSE_MEMORY'));assert.equal(status.documents,0);}
    process.exitCode=0;console.log=originalLog;originalLog(JSON.stringify({fixture:true,scenario:requested,status:'passed',adopted:false,cleanup:status.cleanup,network_connections:0,browser_launches:0}));return;
   }
   if(scenario==='default_dry')assert.equal(status.cdp_stages,undefined);
@@ -151,7 +154,7 @@ async function offlineCliFixture(){
  }
 }
 
-for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary','visible_short','visible_no_heading','visible_both','diagnostic_only','detach_stable','detach_changed','detach_wrong_loader','observe_positive','observe_visible_short','observe_nontext','observe_after_seal']){
+for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary','visible_short','visible_no_heading','visible_both','diagnostic_only','detach_stable','detach_changed','detach_wrong_loader','observe_positive','observe_visible_short','observe_nontext','observe_after_seal','nuxt_positive','nuxt_visible_short','nuxt_nontext','nuxt_unobservable','nuxt_stale_proof','nuxt_install_failure']){
  test('offline exact staging CLI: '+scenario,()=>{
   const child=spawnSync(process.execPath,['--input-type=module','-e',`(${offlineCliFixture.toString()})().catch(()=>{console.log('{"fixture":true,"status":"failed","reason":"OFFLINE_FIXTURE_ASSERTION"}');process.exitCode=1;});`],{
    env:{GITHUB_SHA:'a'.repeat(40),FIXTURE_SCENARIO:scenario,FIXTURE_ENTRY:new URL('./staging-once.mjs',import.meta.url).pathname},encoding:'utf8',timeout:15000,maxBuffer:65536,

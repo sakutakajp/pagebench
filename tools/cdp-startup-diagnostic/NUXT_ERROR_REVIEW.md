@@ -1,0 +1,27 @@
+# Nuxtエラー内容の固定分類・ローカル候補
+
+基準は08324120ed850f958d6336751128e70481c44b1d。過去run44891578823にはerror shellの目印しかなく、過去のstatusCode・例外は復元できない。この候補はローカル統合だけであり、サイトへの再アクセスや次のCIを許可したものではない。
+
+## 記録するもの
+
+- 受理済みprimary/main-contextのCDP Runtime.exceptionThrownはclassNameだけを固定分類。Runtime.consoleAPICalledのerror型は、最大8引数からobject/errorのclassNameだけ。console文字列・description・preview・objectId・stack・URL・行番号は読まず保存しない。console通知はNuxtのhook発火だと断定しない。
+- 新documentのmain worldに観測器を先に登録し、Nuxt appポインタが見えた後にapp:error / vue:errorの通常の購読だけを追加。errorHandler、callHook、グローバル変数のsetter、アプリDOMや挙動は置き換えない。例外オブジェクトは保持せず、固定例外クラスとown data propertyの400〜599のstatusCodeだけを即時投影する。message/stack/cause/dataやVue instance/infoは読まない。
+- 登録時のpayload.errorはPAYLOAD_AT_READYとして別扱い。発生時刻や元の例外を復元したとは言わない。正規化済みNuxtエラーから元のTypeError等を復元するためcauseを掘らない。
+- DOMは既知のerror画像＋同じmainの限定構造の組合せがある場合だけ、最大3テキストノード・16文字以内の数字ステータスを読む。見出しや本文は読まない。DOMだけでNuxt内部エラー・HTTP応答ステータス・サーバー障害を証明しない。画像だけの偽目印、ステータス欠損/非数字、hookとの不一致は区別する。
+- 発生箇所は全てUNKNOWN。現行ビルドとの確かなコード同一性がないので、コンポーネント名、ページsetup、内容API等を推測しない。hook/CDPの観測経路ラベルはコード上の原因箇所ではない。
+
+## 範囲と欠測
+
+installNuxtErrorEvidence(ctx, target)は、既存の全guardとctx.pageが準備できたabout:blank上で、他の観測器を取り付けた後、最初のLighthouse navigationより前に呼ぶライブラリ候補。既存gateway.forwardが受理・転送したイベントのみ参照し、生CDPや拒否入力の再解析はしない。新しい通信実装、Runtimeの再開、guard例外、TLS/sandbox変更はない。
+
+NuxtポインタがDOMに付く前のhookは捕捉できない。bootstrap自体が早くても完全なhookカバレッジは主張しない。100ms間隔・250回までの購読探索（最終owner照合は別に1回）、hookとCDPでそれぞれ最大16イベント。ready未発見、main-context未確定、owner/loader/session変更、observer競合、欠測、上限は固定分類。未記録は「エラーなし」ではない。DOMとhookの観測時点も別で、同じ例外だと自動的に対応付けない。
+
+最終collectは同じframe/loader/targetを前後で照合し最大750ms。追加CDPはpreload登録1、frame照合2、固定snapshot評価1、終了時のdispose評価1・preload解除1の最大6。登録・collect・disposeは各750ms、待ち時間設定の合計は最大2250ms（イベントループの遅延自体の保証ではない）。中断時に未完のCDP応答が残れば既存guardとプロセスcleanupに委ね、新しい命令を追加しない。停止/fatal/期限切れ後は新たなCDPを発行しない。cleanup時は既存プロセス終了処理に従い、停止中に観測器を外すための操作も発行しない。追加購読/ポーリングによる微小な実行時間変化はあり、正式スコア用途にしない。
+
+## 今回の閉域検証と次に必要なこと
+
+Nuxt互換のnamed-hook/取消しfixture、同じbootstrap/collection入口のNode VM、Vueの既存ローカルライブラリの捕捉対照を区別して検証する。VM/互換fixtureはNuxtの完全なSSR/hydration runtimeではない。参照できたローカルNuxtは3.14.1592であり、現行配信版やNuxt4との実バイナリ一致は未確認。
+
+nuxt-error-browser-fixture.mjsは既存FixtureGatewayとdenyProxyだけを用いる完全閉域5対照。normal/app_error/vue_captured/fake_marker/not_ready。実サイトへ転送する機能はなく、模擬HTML以外は既存境界で遮断する。通常のsandboxで実Chromeを起動できない場合は未実施として止める。
+
+staging-onceの新しい観測専用 --observe-nuxt-errors-once だけで有効化。従来 --execute / --observe-once は新装置を起動しない。固定証拠はLighthouse返却後・既存のreport/表示判定前に採取し、LIVE_VISIBLE_CONTENTでも保持。guard停止時や欠測はUNKNOWNで、スコアやLighthouseレポートは保存しない。新規専用workflowは diag/nuxt-error-observe-once-20261121 の自分自身のパスのpush、件名m1、親0832412、初回、差分一覧/source hash、同一SHA/fingerprint/Chromeの全gate・5対照・readbackを条件に、将来だけ固定/ja/を1回観測する案。旧workflowは無変更。新たな明示承認なしにpush/CI/サイト観測は行わない。同一候補SHAでの実Chrome全gateは未確認。採否、Font/Trace/通信制御は変更しない。生エラー本文を復元/公開する候補ではなく、次回に取得可能なstatusと例外分類を安全に限定する候補。
