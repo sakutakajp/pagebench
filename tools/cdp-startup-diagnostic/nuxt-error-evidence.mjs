@@ -4,9 +4,43 @@ export const ERROR_PROBE_SLOT = '__pagebench_nuxt_error_observer_v1__';
 // Serialized verbatim into the main world before application scripts. Only fixed
 // metadata leaves this closure; errors, instances, messages and stacks never do.
 export function createNuxtErrorProbe(env = globalThis) {
+  // Captured at document-start, before target application code. No brand-check
+  // fallback: instanceof / toString / name do not exclude Proxy wrappers.
+  const errorBrand = typeof Error.isError === 'function' ? Error.isError : null;
+  const descriptor = Object.getOwnPropertyDescriptor, prototypeOf = Object.getPrototypeOf, hasOwn = Object.hasOwn, integer = Number.isInteger;
+  const typePrototype = TypeError.prototype, referencePrototype = ReferenceError.prototype, syntaxPrototype = SyntaxError.prototype, rangePrototype = RangeError.prototype, errorPrototype = Error.prototype;
+  const branded = value => { try { return errorBrand !== null && errorBrand(value) === true; } catch { return false; } };
+  const intrinsicClass = value => {
+    const p = prototypeOf(value); // Call only after the native Error brand check.
+    return p === typePrototype ? 'TYPE_ERROR' : p === referencePrototype ? 'REFERENCE_ERROR' : p === syntaxPrototype ? 'SYNTAX_ERROR' : p === rangePrototype ? 'RANGE_ERROR' : p === errorPrototype ? 'ERROR' : 'OTHER_OR_UNKNOWN';
+  };
+  const emptyCause = state => ({ state, error_class: 'OTHER_OR_UNKNOWN', class_evidence: 'UNKNOWN', message_shape: 'OTHER_OR_UNKNOWN', message_evidence: 'UNAVAILABLE', attribution: 'SHAPE_ONLY_NOT_SOURCE' });
+  const payloadCause = wrapper => {
+    if (!errorBrand) return emptyCause('UNSUPPORTED_BRAND_CHECK');
+    if (!branded(wrapper)) return emptyCause('OPAQUE_WRAPPER');
+    try {
+      const d = descriptor(wrapper, 'cause');
+      if (!d) return emptyCause('MISSING_CAUSE');
+      if (!hasOwn(d, 'value')) return emptyCause('ACCESSOR_CAUSE');
+      const cause = d.value;
+      if (cause === wrapper) return emptyCause('SELF_REFERENCE');
+      if (!branded(cause)) return emptyCause('OPAQUE_CAUSE');
+      const cls = intrinsicClass(cause), m = descriptor(cause, 'message');
+      const text = m && hasOwn(m, 'value') ? m.value : undefined;
+      const readable = typeof text === 'string', bounded = readable && text.length <= 64;
+      return { state: 'OWN_NATIVE_CAUSE', error_class: cls, class_evidence: cls === 'OTHER_OR_UNKNOWN' ? 'UNKNOWN' : 'DIRECT_CAPTURED_INTRINSIC_PROTOTYPE', message_shape: cls === 'TYPE_ERROR' && bounded && text === "Cannot read properties of null (reading 'title')" ? 'NULL_TITLE_READ' : 'OTHER_OR_UNKNOWN', message_evidence: !readable ? 'UNAVAILABLE' : bounded ? 'OWN_DATA_STRING' : 'TOO_LONG', attribution: 'SHAPE_ONLY_NOT_SOURCE' };
+    } catch { return emptyCause('UNKNOWN'); }
+  };
   const names = new Map([['TypeError', 'TYPE_ERROR'], ['ReferenceError', 'REFERENCE_ERROR'], ['SyntaxError', 'SYNTAX_ERROR'], ['RangeError', 'RANGE_ERROR'], ['Error', 'ERROR'], ['H3Error', 'NUXT_OR_H3_ERROR']]);
   const own = (value, key) => {
-    try { const d = Object.getOwnPropertyDescriptor(value, key); return d && 'value' in d ? d.value : undefined; } catch { return undefined; }
+    try { const d = descriptor(value, key); return d && hasOwn(d, 'value') ? d.value : undefined; } catch { return undefined; }
+  };
+  const payloadMeta = value => {
+    // Opaque or unsupported payloads stay silent, including parent metadata;
+    // otherwise even the old reflection could trigger a Proxy descriptor trap.
+    if (!branded(value)) return { error_class: 'OTHER_OR_UNKNOWN', status_code: null, location: 'UNKNOWN' };
+    const cls = own(value, '__nuxt_error') === true || own(value, 'name') === 'H3Error' ? 'NUXT_OR_H3_ERROR' : intrinsicClass(value), status = own(value, 'statusCode');
+    return { error_class: cls, status_code: integer(status) && status >= 400 && status <= 599 ? status : null, location: 'UNKNOWN' };
   };
   const project = value => {
     let name = own(value, 'name');
@@ -21,7 +55,7 @@ export function createNuxtErrorProbe(env = globalThis) {
   const record = (source, error) => {
     if (!active || failed) return;
     if (events.length >= 16) { overflow = true; return; }
-    try { events.push({ source, ...project(error) }); } catch { failed = true; }
+    try { events.push(source === 'PAYLOAD_AT_READY' ? { source, ...payloadMeta(error), cause_detail: payloadCause(error) } : { source, ...project(error) }); } catch { failed = true; }
   };
   const release = () => { for (const off of unhooks.splice(0)) { try { off(); } catch { failed = true; } } };
   const current = () => env.document.getElementById('__nuxt')?.__vue_app__?.config?.globalProperties?.$nuxt;
@@ -65,7 +99,7 @@ export function createNuxtErrorProbe(env = globalThis) {
   };
   return Object.freeze({ snapshot() {
     if (active && !failed) { try { if (owner && current() !== owner) { failed = true; release(); } else poll(); } catch { failed = true; release(); } }
-    return { coverage: !active ? 'DISPOSED' : failed ? 'UNOBSERVABLE' : owner ? 'REGISTERED_WITH_PRE_READY_GAP' : attempts >= 250 ? 'READY_NOT_FOUND_WITHIN_BUDGET' : 'WAITING_FOR_READY', pre_ready_gap: true, overflow, events: events.map(e => ({ ...e })), dom: dom(), attribution: 'APP_REPORTED_NOT_CAUSAL', location: 'UNKNOWN' };
+    return { coverage: !active ? 'DISPOSED' : failed ? 'UNOBSERVABLE' : owner ? 'REGISTERED_WITH_PRE_READY_GAP' : attempts >= 250 ? 'READY_NOT_FOUND_WITHIN_BUDGET' : 'WAITING_FOR_READY', pre_ready_gap: true, overflow, events: events.map(e => e.cause_detail ? ({ ...e, cause_detail: { ...e.cause_detail } }) : ({ ...e })), dom: dom(), attribution: 'APP_REPORTED_NOT_CAUSAL', location: 'UNKNOWN' };
   }, dispose() { if (!active) return; active = false; env.clearInterval(timer); release(); owner = null; } });
 }
 
@@ -73,6 +107,14 @@ const CLASSES = ['TYPE_ERROR', 'REFERENCE_ERROR', 'SYNTAX_ERROR', 'RANGE_ERROR',
 const SOURCES = ['APP_ERROR_HOOK', 'VUE_ERROR_HOOK', 'PAYLOAD_AT_READY'];
 const COVERAGE = ['REGISTERED_WITH_PRE_READY_GAP', 'READY_NOT_FOUND_WITHIN_BUDGET', 'WAITING_FOR_READY', 'UNOBSERVABLE', 'DISPOSED'];
 const DOM = ['ABSENT', 'AMBIGUOUS', 'MARKER_ONLY', 'STATUS_UNAVAILABLE', 'STRUCTURAL_CANDIDATE', 'UNOBSERVABLE'];
+export function safePayloadCause(v) {
+  const states = ['UNSUPPORTED_BRAND_CHECK','OPAQUE_WRAPPER','MISSING_CAUSE','ACCESSOR_CAUSE','SELF_REFERENCE','OPAQUE_CAUSE','UNKNOWN','OWN_NATIVE_CAUSE'];
+  const unknown = { state: 'UNKNOWN', error_class: 'OTHER_OR_UNKNOWN', class_evidence: 'UNKNOWN', message_shape: 'OTHER_OR_UNKNOWN', message_evidence: 'UNAVAILABLE', attribution: 'SHAPE_ONLY_NOT_SOURCE' };
+  if (!v || !states.includes(v.state) || !['TYPE_ERROR','REFERENCE_ERROR','SYNTAX_ERROR','RANGE_ERROR','ERROR','OTHER_OR_UNKNOWN'].includes(v.error_class) || !['UNKNOWN','DIRECT_CAPTURED_INTRINSIC_PROTOTYPE'].includes(v.class_evidence) || !['NULL_TITLE_READ','OTHER_OR_UNKNOWN'].includes(v.message_shape) || !['UNAVAILABLE','OWN_DATA_STRING','TOO_LONG'].includes(v.message_evidence) || v.attribution !== 'SHAPE_ONLY_NOT_SOURCE') return unknown;
+  if(v.state!=='OWN_NATIVE_CAUSE'&&(v.error_class!=='OTHER_OR_UNKNOWN'||v.class_evidence!=='UNKNOWN'||v.message_shape!=='OTHER_OR_UNKNOWN'||v.message_evidence!=='UNAVAILABLE'))return unknown;
+  if((v.error_class==='OTHER_OR_UNKNOWN')!==(v.class_evidence==='UNKNOWN')||v.message_shape==='NULL_TITLE_READ'&&(v.error_class!=='TYPE_ERROR'||v.message_evidence!=='OWN_DATA_STRING'))return unknown;
+  return { state: v.state, error_class: v.error_class, class_evidence: v.class_evidence, message_shape: v.message_shape, message_evidence: v.message_evidence, attribution: 'SHAPE_ONLY_NOT_SOURCE' };
+}
 const code = v => Number.isInteger(v) && v >= 400 && v <= 599 ? v : null;
 const missing = reason => ({ status: 'UNKNOWN', reason, hooks: null, cdp: null, location: 'UNKNOWN', cause: 'NOT_ATTRIBUTED' });
 export function compareErrorSignals(hooks, cdp) {
@@ -86,7 +128,7 @@ export function safeNuxtErrorProbe(v) {
     if (!v || !COVERAGE.includes(v.coverage) || v.pre_ready_gap !== true || typeof v.overflow !== 'boolean' || !Array.isArray(v.events) || v.events.length > 16 || !DOM.includes(v.dom?.signature)) return null;
     const events = v.events.map(e => {
       if (!SOURCES.includes(e.source) || !CLASSES.includes(e.error_class) || e.location !== 'UNKNOWN' || e.status_code !== null && code(e.status_code) === null) throw Error();
-      return { source: e.source, error_class: e.error_class, status_code: e.status_code, location: 'UNKNOWN' };
+      return { source: e.source, error_class: e.error_class, status_code: e.status_code, location: 'UNKNOWN', ...(e.source === 'PAYLOAD_AT_READY' && Object.hasOwn(e,'cause_detail') ? { cause_detail: safePayloadCause(e.cause_detail) } : {}) };
     });
     const status = code(v.dom.status_code);
     if (v.dom.signature === 'STRUCTURAL_CANDIDATE' ? status === null : v.dom.status_code !== null) return null;

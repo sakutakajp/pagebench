@@ -1,0 +1,34 @@
+# payload cause一段の固定分類候補（ローカルのみ）
+
+基準a4c43b8bca1761a146427066df2d1c91d9e3721b。ローカルの候補1commitだけを準備し、push、CI、サイト接続は行わない。過去runの元例外は復元しない。Nov18ビルドの対照でnull metadata→title参照→TypeError→500ラッパーが成立しても、現行ステージングのcauseやコード箇所を確定する証拠にはしない。
+
+## 読み取り境界
+
+既存PAYLOAD_AT_READYの採取時点だけにcause_detailを追加する。document-startでError.isError、Object.getOwnPropertyDescriptor、Object.getPrototypeOf、Object.hasOwnと純正の各Error prototypeを捕捉する。wrapperとcauseの双方をError.isErrorで検査してから、そのnative Error自身のown data descriptorに限定し一段読む。Proxyと失効Proxyは反射しない。getterは実行せず、prototype chain、constructor、nameでcauseの型を推定しない。instanceof、toString、エラー全体のJSON化、stack、URL、source path、causeのcauseは読まない。
+
+純正prototypeとの単一等値比較でTYPE_ERROR等の分類を返す。class_evidenceはDIRECT_CAPTURED_INTRINSIC_PROTOTYPE。別realm・独自subclass・不明なprototypeはOTHER_OR_UNKNOWN。これは元のconstructor/発生元の暗号学的証明ではなく、現在の直接prototypeを観測した分類である。人為的に同じprototypeや同じTypeError文字列を作れば区別できないため、ソース帰属は常にSHAPE_ONLY_NOT_SOURCE。
+
+TypeErrorのown messageがprimitive string・64 UTF-16単位以内で、コード内の既知文字列と完全一致する場合だけNULL_TITLE_READ。それ以外の大小文字、前後空白、別property、長い文字列、別クラスはOTHER_OR_UNKNOWN。生メッセージを結果へ写さず、任意スニペットを作らない。native Errorが凍結済みでもdata descriptorなら扱える。既にDTO化されたcauseを再解釈しない。自己参照はSELF_REFERENCE、欠損/アクセサ/不透明は別の固定状態。
+
+## 意図的に保守的な点
+
+Error.isError未対応ならfallbackせずUNSUPPORTED_BRAND_CHECK。wrapperがnative Errorと確認できない場合、causeだけでなくPAYLOAD_AT_READYの親メタデータも反射せずOTHER_OR_UNKNOWN/nullへ閉じる。従来のdescriptor処理を残すとwrapper自体がProxyの場合にtrapが発火するため。この点は旧版のplain object payload投影より保守的になる。DOMの数値観測、APP_ERROR_HOOK/VUE_ERROR_HOOKの既存投影、CDP通知は別扱いで維持する。
+
+Causeの未対応・欠損・未判定は「原因なし」ではない。型と形状が一致してもpages/ja/index.vue、queryContent、.titleのソース行を特定したとは扱わない。一般Error/RangeErrorでも500はあり得る。cause機構の追加ブラウザ命令・待ち・送信許可・採点処理はない。新しい未公開専用workflowのgate count/hashだけを更新する。既存workflowは無変更。
+
+## 検証と残件
+
+ローカルNode24の実Error.isErrorとVMで、trap/getter/coercionが0、1段限定、凍結、文字列の厳密境界、偽一致、欠損、旧投影・JSON readbackを対照にする。未対応環境はVMで明示的に検証するが、ブランド検査のshimを実検証の代用にはしない。実ブラウザと既存Actions Node22でのAPI有無はこのターンでは新たに検証しない。未対応なら情報を得られずUNKNOWNとなる。現行配信版・実原因も未確認のまま。
+
+
+## 統合候補と将来の単発ゲート
+
+公開予定refはdiag/payload-cause-observe-once-20261121、workflowはstaging-payload-cause-observe-once-20261121.yml、件名はdiagnostic: native payload cause proof once (20261121-n1)、親a4c43b8bca1761a146427066df2d1c91d9e3721b。exact branch/path/title/parent/diff/source hash/attempt1のみ。今は実行承認がなく、pushも行わない。
+
+純正ブランドの正例を含む単体試験は、APIを実際に確認できたNode24.19.0へ明示pin。Node22のAPI有無を推測してshimに置き換えない。旧Chrome/計測のruntimeはNode22.19.0のまま、unit後にsetup-nodeで戻しadmissionでprocess.versionも確認する。Node24は単体試験専用であり、Lighthouse測定runtimeの変更ではない。
+
+旧必須ゲート、lineage7件、error5件を同じSHA/fingerprint/Chromeで維持する。追加の閉域実Chromeはnative_title / proxy_cause / proxy_wrapper / missing_cause / message_getter / range_same_textの6件。H3形状のnative wrapperと実際のnull.title TypeErrorを用い、標準Error.isErrorあり、Proxy反射0、getter0、NULL_TITLE_READ、公開投影の書込み/読戻しを必須にする。欠損・不透明・別クラスはinformation=UNKNOWN。APIなしや観測失敗を成功扱いしない。
+
+閉域fixtureは固定HTMLをメモリでfulfillし、既存denyProxyを使い上流転送不能。テストだけのcounter読取りを1回追加するが、本観測のcause機構のCDP呼出し数は増えない。fixtureのpublic JSONは失敗投影の検証で、Lighthouseを実測した成功レポートではない。score/metricsはnull・採用/レポート保存はfalse。実Chromeはこの環境の既知sandbox制限により未検証であり、合成VMの成功を代用しない。
+
+全ゲートと公開固定JSON readbackが実際に通った同じrunだけで、将来別途承認後の固定staging /ja/ 1ナビゲーションが可能になる。前回のmobile simulate 300ms/800kbps/CPU6、許可先2origin、GET/HEAD、認証除外、TLS/sandbox、Trace/Font/cleanup、スコア/レポート不保存は維持する。過去原因やコード箇所の帰属は行わない。

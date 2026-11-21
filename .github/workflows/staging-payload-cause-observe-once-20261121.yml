@@ -1,0 +1,282 @@
+name: Native payload cause proof and one future observation
+on:
+  push:
+    branches:
+      - diag/payload-cause-observe-once-20261121
+    paths:
+      - .github/workflows/staging-payload-cause-observe-once-20261121.yml
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-payload-cause-observe-one-authorized-attempt
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/payload-cause-observe-once-20261121' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: native payload cause proof once (20261121-n1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Locked fixture-only dependencies
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Native-brand unit test runtime only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Synthetic and loopback-only tests
+        id: unit
+        run: |
+          node --check tools/cdp-startup-diagnostic/diagnostic.mjs
+          node --check tools/cdp-startup-diagnostic/cleanup.mjs
+          node --check tools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';
+          import {readdir,writeFile} from 'node:fs/promises';
+          if(process.version!=='v24.19.0'||typeof Error.isError!=='function'){console.log('{"kind":"offline-unit-proof","status":"failed","reason":"NATIVE_BRAND_RUNTIME_REQUIRED"}');process.exit(1);}
+          const files=(await readdir('tools/cdp-startup-diagnostic')).filter(f=>f.endsWith('.test.mjs')).sort().map(f=>'tools/cdp-startup-diagnostic/'+f);
+          const r=spawnSync(process.execPath,['--test',...files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});
+          const counts=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=r.status===0&&counts.tests===474&&counts.pass===474&&counts.fail===0&&counts.skipped===0&&counts.cancelled===0;
+          const result={kind:'offline-unit-proof',status:pass?'passed':'failed',workflow_sha:process.env.GITHUB_SHA,node:process.version,...counts};
+          await writeFile('offline-unit-proof.json',JSON.stringify(result),{mode:0o600});
+          console.log(JSON.stringify(result));
+          if(!pass)process.exitCode=1;
+          JS
+      - name: Restore unchanged measurement runtime
+        id: measurement_runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Compare global page capture and response-scoped capture
+        id: capture
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        id: closed
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        id: memory
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Actual request and response path on closed loopback fixture
+        id: response
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: Passive Font response monitor closed proof
+        id: fonts
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
+      - name: Real Chrome fixed stage evidence on closed fixture
+        id: real_stages
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import{readFile,writeFile}from'node:fs/promises';
+          import{createRequire}from'node:module';import{pathToFileURL}from'node:url';
+          import{openGuarded}from'./tools/cdp-startup-diagnostic/fixture-runner.mjs';
+          import{ObservedFontFixture,fontLighthouseReport}from'./tools/cdp-startup-diagnostic/font-observe-fixture.mjs';
+          import{fontProxy}from'./tools/cdp-startup-diagnostic/font-fixture.mjs';
+          import{FIXTURE_URL}from'./tools/cdp-startup-diagnostic/fixture-gateway.mjs';
+          import{SETTINGS}from'./tools/lighthouse-once/guard.mjs';
+          import{sealMeasurement,verifyMeasurementSeal}from'./tools/cdp-startup-diagnostic/measurement-cutoff.mjs';
+          import{safetyFingerprint}from'./tools/cdp-startup-diagnostic/proof.mjs';
+          const require=createRequire(new URL('./tools/lighthouse-once/package.json',import.meta.url));
+          let ctx,phase='START';
+          try{
+           ctx=await openGuarded(ObservedFontFixture,()=>fontProxy('font_ok'));phase='LIGHTHOUSE';
+           const{default:lighthouse}=await import(pathToFileURL(require.resolve('lighthouse')).href);
+           let timer;let run;try{run=await Promise.race([lighthouse(FIXTURE_URL,{logLevel:'silent'},{extends:'lighthouse:default',settings:SETTINGS},ctx.page),new Promise((_,reject)=>timer=setTimeout(()=>{ctx.gateway.fail('FONT_FIXTURE_DEADLINE');reject(Error());},90000))]);}finally{clearTimeout(timer);}
+           const report=fontLighthouseReport(run.lhr,ctx);phase='VISIBLE';
+           const visible=await ctx.page.evaluate(()=>({body_characters:document.body?.innerText.trim().length||0,headings:document.querySelectorAll('h1,h2').length,font_loaded:window.fontStatus==='loaded'}));
+           if(!visible.font_loaded||visible.body_characters<1||visible.headings<1)throw Error();
+           phase='SEAL';const seal=await sealMeasurement(ctx,1);phase='CLEANUP';const cleanup=await ctx.cleanup();verifyMeasurementSeal(ctx,seal);
+           phase='STAGES';const stages=ctx.gateway.stageJournal.snapshot();
+           if(cleanup.status!=='complete'||ctx.gateway.stats.fatal||stages.complete!==true||stages.limitation!==null||stages.cause!=='NOT_ATTRIBUTED'||stages.observation!=='OBSERVED'||stages.phase!=='CLEANUP'||stages.cleanup_guard_stop||stages.cleanup_callbacks_saturated||stages.limits.events!==64||stages.limits.pending!==64||stages.limits.count!==255||Object.values(stages.outstanding).some(n=>n!==0)||stages.counts.TRACE_START_SENT!==1||stages.counts.TRACE_START_COMPLETE!==1||stages.counts.TRACE_END_SENT!==1||stages.counts.TRACE_END_COMPLETE!==1||stages.counts.STREAM_READY!==1||!(stages.counts.TRACE_READ_SENT>=1)||stages.counts.TRACE_READ_COMPLETE!==stages.counts.TRACE_READ_SENT||stages.counts.SCRIPT_SOURCE_SENT!==stages.counts.SCRIPT_SOURCE_COMPLETE)throw Error();
+           const result={kind:'real-chrome-stage-proof',status:'passed',workflow_sha:process.env.GITHUB_SHA,fingerprint:await safetyFingerprint(),chrome:ctx.chrome,lighthouse:report.lighthouse,fonts_expected:seal.fonts.expected,fonts_verified:seal.fonts.verified,stages,cleanup:'complete',outbound_forwarding:0,live_pages_attempted:0};
+           const bytes=JSON.stringify(result);await writeFile('real-chrome-stage-proof.json',bytes,{mode:0o600});if(await readFile('real-chrome-stage-proof.json','utf8')!==bytes)throw Error();
+           console.log(bytes);ctx=null;
+          }catch{
+           const cleanup=await ctx?.cleanup().catch(()=>({status:'failed'}));
+           const result={kind:'real-chrome-stage-proof',status:'failed',phase,cleanup:cleanup?.status||'not-started',reason:'REAL_STAGE_PROOF_FAILED',outbound_forwarding:0,live_pages_attempted:0};
+           await writeFile('real-chrome-stage-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));process.exitCode=1;
+          }
+          JS
+      - name: Real Chrome large Unicode trace, strict report readback and abort gate
+        id: trace_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs
+      - name: Same-navigation detach observation on closed real Chrome
+        id: detach_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/detach-browser-fixture.mjs
+      - name: Main paint observation in closed real Chrome
+        id: main_paint_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/main-paint-browser-fixture.mjs
+      - name: Node lineage same-document proof in closed real Chrome
+        id: node_lineage_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs
+      - name: Closed real Chrome Nuxt error five controls and fixed JSON readback
+        id: nuxt_errors
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/nuxt-error-browser-fixture.mjs
+      - name: Mandatory native payload cause, zero traps and public JSON readback
+        id: payload_cause
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/payload-cause-browser-fixture.mjs
+      - name: Strict admission for the one authorized staging attempt
+        id: admission
+        if: success()
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+          EXPECTED_REF: refs/heads/diag/payload-cause-observe-once-20261121
+          EXPECTED_SUBJECT: 'diagnostic: native payload cause proof once (20261121-n1)'
+        run: |
+          node --input-type=module <<'JS'
+          import {readFile,writeFile,appendFile} from 'node:fs/promises';
+          import {execFileSync} from 'node:child_process';
+          import {createHash} from 'node:crypto';
+          import {safetyFingerprint} from './tools/cdp-startup-diagnostic/proof.mjs';
+          import {validNuxtErrorBrowserProof} from './tools/cdp-startup-diagnostic/nuxt-error-browser-fixture.mjs';
+          import {validCauseBrowserProof} from './tools/cdp-startup-diagnostic/payload-cause-browser-fixture.mjs';
+          import {validLineageBrowserProof} from './tools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs';
+          import {validMainPaintProof} from './tools/cdp-startup-diagnostic/main-paint-browser-fixture.mjs';
+          import {validDetachBrowserProof} from './tools/cdp-startup-diagnostic/detach-browser-fixture.mjs';
+          import {validBrowserTraceProof} from './tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs';
+          const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+          const load=async p=>JSON.parse(await readFile(p,'utf8'));
+          try {
+            if(process.version!=='v22.19.0')throw Error();
+            const steps=JSON.parse(process.env.STEP_OUTCOMES);
+            if(['unit','capture','closed','memory','response','fonts','real_stages','trace_browser','detach_browser','main_paint_browser','node_lineage_browser','nuxt_errors','payload_cause','measurement_runtime'].some(k=>steps[k]?.outcome!=='success')||steps.capture.outputs?.fixture_ready!=='true')throw Error();
+            const sha=process.env.GITHUB_SHA;
+            if(!/^[a-f0-9]{40}$/.test(sha)||git('rev-parse','HEAD')!==sha||git('rev-parse','HEAD^')!=='a4c43b8bca1761a146427066df2d1c91d9e3721b'||git('diff','--name-only','HEAD^','HEAD')!=='.github/workflows/staging-payload-cause-observe-once-20261121.yml\ntools/cdp-startup-diagnostic/PAYLOAD_CAUSE_REVIEW.md\ntools/cdp-startup-diagnostic/nuxt-error-evidence.mjs\ntools/cdp-startup-diagnostic/nuxt-payload-cause.test.mjs\ntools/cdp-startup-diagnostic/payload-cause-browser-fixture.mjs\ntools/cdp-startup-diagnostic/payload-cause-browser-fixture.test.mjs\ntools/cdp-startup-diagnostic/proof.mjs')throw Error();
+            if(process.env.GITHUB_REF!==process.env.EXPECTED_REF||process.env.GITHUB_EVENT_NAME!=='push'||process.env.GITHUB_RUN_ATTEMPT!=='1'||git('log','-1','--format=%s')!==process.env.EXPECTED_SUBJECT)throw Error();
+            const unit=await load('offline-unit-proof.json');
+            if(unit.status!=='passed'||unit.workflow_sha!==sha||unit.node!=='v24.19.0'||unit.tests!==474||unit.pass!==474||unit.fail!==0||unit.skipped!==0||unit.cancelled!==0)throw Error();
+            const workflow=await readFile('.github/workflows/staging-payload-cause-observe-once-20261121.yml','utf8');
+            const wrapper=workflow.split('      - name: Exactly one authorized staging ja navigation\n')[1].split("          node --input-type=module <<'JS'\n")[1].split('\n          JS')[0].split('\n').map(l=>l.slice(10)).join('\n');
+            if(createHash('sha256').update(wrapper).digest('hex')!=='77f0856de9bcc4c8edede0359f719a7b047143898dba1c9a1a6b3eeedec1729d')throw Error();
+            const approvedSources={"tools/cdp-startup-diagnostic/PAYLOAD_CAUSE_REVIEW.md":"346cddeb8ac776c4d96702fe3a26f915579e8a2fe9c8ba08828b8f3d2d4bb0eb","tools/cdp-startup-diagnostic/nuxt-error-evidence.mjs":"c1048b35f140f90f4f69560f98f01ea7b1ac53eb5263fb390e67b4c95ed9da35","tools/cdp-startup-diagnostic/nuxt-payload-cause.test.mjs":"6a12003a31852b7049db807e519a4611de3e0dd5001c5ab7ed9a2a133320c043","tools/cdp-startup-diagnostic/payload-cause-browser-fixture.mjs":"b7f59ea35105562601f9db0ac1818cb1c187de7652595ea121553bdf35e1c39e","tools/cdp-startup-diagnostic/payload-cause-browser-fixture.test.mjs":"95508ac420c4ea6e72873fd498c2e76deeda7c3d7aa4b74a16c54b828a672038","tools/cdp-startup-diagnostic/proof.mjs":"a2a66b1ee5aa6c8cd16f5887b4203a6bf0095cce8dbd1f26383437360fa1dec8"};
+            for(const [file,hash]of Object.entries(approvedSources))if(createHash('sha256').update(await readFile(file)).digest('hex')!==hash)throw Error();
+            const [fixture,memory,response,font]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json','response-path-proof.json','font-observed-proof.json'].map(load));
+            const fingerprint=await safetyFingerprint();
+            if([fixture,memory,response].some(p=>p.status!=='passed'||p.run_sha!==sha||p.safety_fingerprint!==fingerprint||p.outbound_forwarding!==0))throw Error();
+            if(!/^Chrome\/\d+\.\d+\.\d+\.\d+$/.test(fixture.chrome)||[memory,response].some(p=>p.chrome!==fixture.chrome)||fixture.cleanup!=='complete'||fixture.json_readback!==true||fixture.ui_resumes!==0||memory.continued_requests!==0||memory.blocked_requests<3)throw Error();
+            const guards=['positive-render','POST-and-external-denied','popup-stopped','worker-stopped','iframe-stopped','loss-stopped','mutation-stopped','websocket-no-handshake'];
+            if(JSON.stringify(fixture.cases)!==JSON.stringify(guards))throw Error();
+            if(JSON.stringify(response.cases?.map(c=>c.case))!==JSON.stringify(['parallel_success','network','missing_metadata','redirect'])||response.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const names=['font_ok','font_status','font_bad_mime','font_private','font_disconnect','font_cors','font_redirect','font_missing_finish','font_wrong_session','font_mismatch_url','font_denied','font_write','font_credentials','font_late_final_failure','guard_popup','guard_worker','guard_loss','guard_mutation','guard_websocket'];
+            if(font.status!=='passed'||font.outbound_forwarding!==0||font.live_pages_attempted!==0||font.json_readback!==true||JSON.stringify(font.cases?.map(c=>c.case))!==JSON.stringify(names)||font.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const bytes=await readFile('font-observed-lighthouse-report.json');
+            const report=JSON.parse(bytes.toString('utf8'));
+            if(createHash('sha256').update(bytes).digest('hex')!==font.report_sha256||JSON.stringify(report)!==JSON.stringify(font.lighthouse))throw Error();
+            const f=report.fonts,t=report.settings?.throttling;
+            if(report.status!=='adopted'||report.chrome!==fixture.chrome||report.lighthouse!=='13.6.0'||report.cleanup!=='complete'||report.outbound_forwarding!==0||report.url_identity_validated!==true||report.screenshots_saved!==0||report.settings.formFactor!=='mobile'||report.settings.throttlingMethod!=='simulate'||t.rttMs!==300||t.throughputKbps!==800||t.cpuSlowdownMultiplier!==6)throw Error();
+            if(!f?.adoptable||f.expected<1||f.verified!==f.expected||f.unbound!==0||f.incomplete!==0||f.fatal!==null||f.phase!=='SEALED'||f.minimum_required!==1||f.observation!=='VERIFIED_FONTS'||f.after_seal_events!==0||report.measurement_boundary!=='AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE')throw Error();
+            const stageProof=await load('real-chrome-stage-proof.json'),st=stageProof.stages;
+            if(stageProof.status!=='passed'||stageProof.workflow_sha!==sha||stageProof.fingerprint!==fingerprint||stageProof.chrome!==fixture.chrome||stageProof.lighthouse!=='13.6.0'||stageProof.outbound_forwarding!==0||stageProof.live_pages_attempted!==0||stageProof.cleanup!=='complete'||stageProof.fonts_expected<1||stageProof.fonts_verified!==stageProof.fonts_expected||st.complete!==true||st.limitation!==null||st.cause!=='NOT_ATTRIBUTED'||st.observation!=='OBSERVED'||st.phase!=='CLEANUP'||st.cleanup_guard_stop||st.cleanup_callbacks_saturated||Object.values(st.outstanding).some(n=>n!==0)||st.counts.TRACE_START_SENT!==1||st.counts.TRACE_START_COMPLETE!==1||st.counts.TRACE_END_SENT!==1||st.counts.TRACE_END_COMPLETE!==1||st.counts.STREAM_READY!==1||!(st.counts.TRACE_READ_SENT>=1)||st.counts.TRACE_READ_COMPLETE!==st.counts.TRACE_READ_SENT||st.counts.SCRIPT_SOURCE_SENT!==st.counts.SCRIPT_SOURCE_COMPLETE)throw Error();
+            const traceProof=await load('trace-read-real-proof.json');
+            if(!validBrowserTraceProof(traceProof,sha,fingerprint)||traceProof.chrome!==fixture.chrome||createHash('sha256').update(await readFile('tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs')).digest('hex')!=='7db04f4b00a9d66073e12be2bcab3975dd829dae0b5fd16124c55fc11464bc24')throw Error();
+            const late=font.cases.find(c=>c.case==='font_late_final_failure');
+            if(late.pre_final_adoptable!==true||late.finalization_rejected!==true||late.adoptable!==false||late.performance!==null)throw Error();
+            const detachProof=await load('detach-browser-proof.json');if(!validDetachBrowserProof(detachProof,sha,fingerprint)||detachProof.chrome!==fixture.chrome)throw Error();
+            const mainProof=await load('main-paint-browser-proof.json');if(!validMainPaintProof(mainProof,sha,fingerprint)||mainProof.chrome!==fixture.chrome)throw Error();
+            const nodeProof=await load('node-lineage-browser-proof.json');if(!validLineageBrowserProof(nodeProof,sha,fingerprint)||nodeProof.chrome!==fixture.chrome)throw Error();
+            const errorProof=await load('closed-nuxt-error-proof.json');if(!validNuxtErrorBrowserProof(errorProof,sha,fingerprint)||errorProof.chrome!==fixture.chrome)throw Error();
+            const causeProof=await load('payload-cause-browser-proof.json');if(!validCauseBrowserProof(causeProof,sha,fingerprint)||causeProof.chrome!==fixture.chrome)throw Error();
+            const result={kind:'one-shot-payload-cause-admission',status:'passed',workflow_sha:sha,measuring_baseline:'a4c43b8bca1761a146427066df2d1c91d9e3721b',chrome:fixture.chrome,closed_cases:font.cases.length,lineage_cases:nodeProof.cases.length,error_cases:errorProof.cases.length,cause_cases:causeProof.cases.length,unit_node:unit.node,measurement_node:process.version,verified_fonts:f.verified,live_navigation_limit:1};
+            await writeFile('one-shot-payload-cause-admission.json',JSON.stringify(result),{mode:0o600});
+            await appendFile(process.env.GITHUB_OUTPUT,'ready=true\n');
+            console.log(JSON.stringify(result));
+          } catch {
+            console.log('{"kind":"one-shot-trace-read-admission","status":"rejected","reason":"CLOSED_PROOF_OR_SCOPE_INVALID"}');
+            process.exitCode=1;
+          }
+          JS
+      - name: Exactly one authorized staging ja navigation
+        if: >-
+          success() && steps.admission.outputs.ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.event.head_commit.message == 'diagnostic: native payload cause proof once (20261121-n1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import{spawnSync}from'node:child_process';import{readFile,writeFile,appendFile}from'node:fs/promises';import{nuxtErrorPublicSummary}from'./tools/cdp-startup-diagnostic/nuxt-error-summary.mjs';
+          let result;
+          try{
+           const child=spawnSync('env',['-u','GITHUB_STEP_SUMMARY',process.execPath,'tools/cdp-startup-diagnostic/staging-once.mjs','--observe-nuxt-errors-once'],{encoding:'utf8',timeout:150000,maxBuffer:1048576});
+           const parsed=JSON.parse(await readFile('staging-nuxt-error-status.json','utf8'));
+           result=nuxtErrorPublicSummary(parsed);
+           if(child.error||child.signal||child.status!==0&&result.status==='observation_complete')throw Error();
+          }catch{result=nuxtErrorPublicSummary(null);}
+          const text=JSON.stringify(result);await writeFile('public-payload-cause-observation.json',text,{mode:0o600});if(await readFile('public-payload-cause-observation.json','utf8')!==text)throw Error('OBSERVATION_READBACK_FAILED');
+          console.log(text);if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+text+'\n```\n');if(result.status!=='observation_complete')process.exitCode=1;
+          JS
+      - name: Fixed-enum capture comparison only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payload-cause-observation-only-one-authorized-attempt
+          path: |
+            offline-unit-proof.json
+            real-chrome-stage-proof.json
+            trace-read-real-proof.json
+            one-shot-payload-cause-admission.json
+            public-payload-cause-observation.json
+            detach-browser-proof.json
+            main-paint-browser-proof.json
+            node-lineage-browser-proof.json
+            closed-nuxt-error-proof.json
+            payload-cause-browser-proof.json
+          retention-days: 3
+          if-no-files-found: ignore
