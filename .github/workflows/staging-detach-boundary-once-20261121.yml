@@ -1,0 +1,283 @@
+name: Detach boundary stage one authorized attempt
+on:
+  push:
+    branches:
+      - diag/cdp-isolated-once-20261118-b651ddd
+    paths:
+      - .github/workflows/staging-detach-boundary-once-20261121.yml
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-detach-boundary-one-authorized-attempt
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: detach boundary staging ja once (20261121-h1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Locked fixture-only dependencies
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Synthetic and loopback-only tests
+        id: unit
+        run: |
+          node --check tools/cdp-startup-diagnostic/diagnostic.mjs
+          node --check tools/cdp-startup-diagnostic/cleanup.mjs
+          node --check tools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';
+          import {readdir,writeFile} from 'node:fs/promises';
+          const files=(await readdir('tools/cdp-startup-diagnostic')).filter(f=>f.endsWith('.test.mjs')).sort().map(f=>'tools/cdp-startup-diagnostic/'+f);
+          const r=spawnSync(process.execPath,['--test',...files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});
+          const counts=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=r.status===0&&counts.tests===334&&counts.pass===334&&counts.fail===0&&counts.skipped===0&&counts.cancelled===0;
+          const result={kind:'offline-unit-proof',status:pass?'passed':'failed',workflow_sha:process.env.GITHUB_SHA,node:process.version,...counts};
+          await writeFile('offline-unit-proof.json',JSON.stringify(result),{mode:0o600});
+          console.log(JSON.stringify(result));
+          if(!pass)process.exitCode=1;
+          JS
+      - name: Compare global page capture and response-scoped capture
+        id: capture
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        id: closed
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        id: memory
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Actual request and response path on closed loopback fixture
+        id: response
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: Passive Font response monitor closed proof
+        id: fonts
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
+      - name: Real Chrome fixed stage evidence on closed fixture
+        id: real_stages
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import{readFile,writeFile}from'node:fs/promises';
+          import{createRequire}from'node:module';import{pathToFileURL}from'node:url';
+          import{openGuarded}from'./tools/cdp-startup-diagnostic/fixture-runner.mjs';
+          import{ObservedFontFixture,fontLighthouseReport}from'./tools/cdp-startup-diagnostic/font-observe-fixture.mjs';
+          import{fontProxy}from'./tools/cdp-startup-diagnostic/font-fixture.mjs';
+          import{FIXTURE_URL}from'./tools/cdp-startup-diagnostic/fixture-gateway.mjs';
+          import{SETTINGS}from'./tools/lighthouse-once/guard.mjs';
+          import{sealMeasurement,verifyMeasurementSeal}from'./tools/cdp-startup-diagnostic/measurement-cutoff.mjs';
+          import{safetyFingerprint}from'./tools/cdp-startup-diagnostic/proof.mjs';
+          const require=createRequire(new URL('./tools/lighthouse-once/package.json',import.meta.url));
+          let ctx,phase='START';
+          try{
+           ctx=await openGuarded(ObservedFontFixture,()=>fontProxy('font_ok'));phase='LIGHTHOUSE';
+           const{default:lighthouse}=await import(pathToFileURL(require.resolve('lighthouse')).href);
+           let timer;let run;try{run=await Promise.race([lighthouse(FIXTURE_URL,{logLevel:'silent'},{extends:'lighthouse:default',settings:SETTINGS},ctx.page),new Promise((_,reject)=>timer=setTimeout(()=>{ctx.gateway.fail('FONT_FIXTURE_DEADLINE');reject(Error());},90000))]);}finally{clearTimeout(timer);}
+           const report=fontLighthouseReport(run.lhr,ctx);phase='VISIBLE';
+           const visible=await ctx.page.evaluate(()=>({body_characters:document.body?.innerText.trim().length||0,headings:document.querySelectorAll('h1,h2').length,font_loaded:window.fontStatus==='loaded'}));
+           if(!visible.font_loaded||visible.body_characters<1||visible.headings<1)throw Error();
+           phase='SEAL';const seal=await sealMeasurement(ctx,1);phase='CLEANUP';const cleanup=await ctx.cleanup();verifyMeasurementSeal(ctx,seal);
+           phase='STAGES';const stages=ctx.gateway.stageJournal.snapshot();
+           if(cleanup.status!=='complete'||ctx.gateway.stats.fatal||stages.complete!==true||stages.limitation!==null||stages.cause!=='NOT_ATTRIBUTED'||stages.observation!=='OBSERVED'||stages.phase!=='CLEANUP'||stages.cleanup_guard_stop||stages.cleanup_callbacks_saturated||stages.limits.events!==64||stages.limits.pending!==64||stages.limits.count!==255||Object.values(stages.outstanding).some(n=>n!==0)||stages.counts.TRACE_START_SENT!==1||stages.counts.TRACE_START_COMPLETE!==1||stages.counts.TRACE_END_SENT!==1||stages.counts.TRACE_END_COMPLETE!==1||stages.counts.STREAM_READY!==1||!(stages.counts.TRACE_READ_SENT>=1)||stages.counts.TRACE_READ_COMPLETE!==stages.counts.TRACE_READ_SENT||stages.counts.SCRIPT_SOURCE_SENT!==stages.counts.SCRIPT_SOURCE_COMPLETE)throw Error();
+           const result={kind:'real-chrome-stage-proof',status:'passed',workflow_sha:process.env.GITHUB_SHA,fingerprint:await safetyFingerprint(),chrome:ctx.chrome,lighthouse:report.lighthouse,fonts_expected:seal.fonts.expected,fonts_verified:seal.fonts.verified,stages,cleanup:'complete',outbound_forwarding:0,live_pages_attempted:0};
+           const bytes=JSON.stringify(result);await writeFile('real-chrome-stage-proof.json',bytes,{mode:0o600});if(await readFile('real-chrome-stage-proof.json','utf8')!==bytes)throw Error();
+           console.log(bytes);ctx=null;
+          }catch{
+           const cleanup=await ctx?.cleanup().catch(()=>({status:'failed'}));
+           const result={kind:'real-chrome-stage-proof',status:'failed',phase,cleanup:cleanup?.status||'not-started',reason:'REAL_STAGE_PROOF_FAILED',outbound_forwarding:0,live_pages_attempted:0};
+           await writeFile('real-chrome-stage-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));process.exitCode=1;
+          }
+          JS
+      - name: Real Chrome large Unicode trace, strict report readback and abort gate
+        id: trace_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs
+      - name: Same-navigation detach observation on closed real Chrome
+        id: detach_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/detach-browser-fixture.mjs
+      - name: Strict admission for the one authorized staging attempt
+        id: admission
+        if: success()
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+          EXPECTED_REF: refs/heads/diag/cdp-isolated-once-20261118-b651ddd
+          EXPECTED_SUBJECT: 'diagnostic: detach boundary staging ja once (20261121-h1)'
+        run: |
+          node --input-type=module <<'JS'
+          import {readFile,writeFile,appendFile} from 'node:fs/promises';
+          import {execFileSync} from 'node:child_process';
+          import {createHash} from 'node:crypto';
+          import {safetyFingerprint} from './tools/cdp-startup-diagnostic/proof.mjs';
+          import {validDetachBrowserProof} from './tools/cdp-startup-diagnostic/detach-browser-fixture.mjs';
+          import {validBrowserTraceProof} from './tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs';
+          const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+          const load=async p=>JSON.parse(await readFile(p,'utf8'));
+          try {
+            const steps=JSON.parse(process.env.STEP_OUTCOMES);
+            if(['unit','capture','closed','memory','response','fonts','real_stages','trace_browser','detach_browser'].some(k=>steps[k]?.outcome!=='success')||steps.capture.outputs?.fixture_ready!=='true')throw Error();
+            const sha=process.env.GITHUB_SHA;
+            if(!/^[a-f0-9]{40}$/.test(sha)||git('rev-parse','HEAD')!==sha||git('rev-parse','HEAD^')!=='eaec5e186c89192f4855d73261eb068d624e89ac'||git('diff','--name-only','HEAD^','HEAD')!=='.github/workflows/cdp-isolated-once.yml\n.github/workflows/staging-detach-boundary-once-20261121.yml\ntools/cdp-startup-diagnostic/DETACH_EVIDENCE.md\ntools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs\ntools/cdp-startup-diagnostic/detach-browser-fixture.mjs\ntools/cdp-startup-diagnostic/detach-browser-fixture.test.mjs\ntools/cdp-startup-diagnostic/detach-evidence.mjs\ntools/cdp-startup-diagnostic/detach-evidence.test.mjs\ntools/cdp-startup-diagnostic/proof.mjs\ntools/cdp-startup-diagnostic/public-stage-summary.test.mjs\ntools/cdp-startup-diagnostic/staging-once.mjs')throw Error();
+            if(process.env.GITHUB_REF!==process.env.EXPECTED_REF||process.env.GITHUB_EVENT_NAME!=='push'||process.env.GITHUB_RUN_ATTEMPT!=='1'||git('log','-1','--format=%s')!==process.env.EXPECTED_SUBJECT)throw Error();
+            const unit=await load('offline-unit-proof.json');
+            if(unit.status!=='passed'||unit.workflow_sha!==sha||unit.node!=='v22.19.0'||unit.tests!==334||unit.pass!==334||unit.fail!==0||unit.skipped!==0||unit.cancelled!==0)throw Error();
+            const workflow=await readFile('.github/workflows/staging-detach-boundary-once-20261121.yml','utf8');
+            const wrapper=workflow.split('      - name: Exactly one authorized staging ja navigation\n')[1].split("          node --input-type=module <<'JS'\n")[1].split('\n          JS')[0].split('\n').map(l=>l.slice(10)).join('\n');
+            if(createHash('sha256').update(wrapper).digest('hex')!=='fb9c27a9d32df7d6bafb4474a139d927fc13460823366340a4733a886762e081')throw Error();
+            const approvedSources={"tools/cdp-startup-diagnostic/DETACH_EVIDENCE.md":"84260ff4ca7d0d5eb31c5d41c14797b5f820d3257906d611aa184d91f108e459","tools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs":"b316d6e45ef4c7aebefe98870c66abd67045e77ae538ec56aceb5dc6ac2adf32","tools/cdp-startup-diagnostic/detach-browser-fixture.mjs":"814d85e42caf7479e5a03e2faba99f5c7c97d57390b31742e02a26e5c0399b4f","tools/cdp-startup-diagnostic/detach-browser-fixture.test.mjs":"c0e894a468c99c3e7f8f253bad62f47f332c3cccb363fde1e12d1095a1f2de35","tools/cdp-startup-diagnostic/detach-evidence.mjs":"f9fe7e3e28634689e2728fccb12c03214b1b271ce528a4cefa63218e9d0d55c5","tools/cdp-startup-diagnostic/detach-evidence.test.mjs":"d10befb91e2e445cbb9f59ff99c7c3178ac1d8d57b2d6c173c5ff460b1579333","tools/cdp-startup-diagnostic/proof.mjs":"56d1408a6bd9a53aa758bee2e7b9f1d37e653e6f39cd6b9fce85bcc43fa977ce","tools/cdp-startup-diagnostic/public-stage-summary.test.mjs":"2541d94f965af96d7a7af99ea7f10eb723cd61ca71e2354f636cc72d042540dd","tools/cdp-startup-diagnostic/staging-once.mjs":"150c9ba51ac6e06764349d0e57940f0dc7e72bc2233e21836279e4ebde3831f2"};
+            for(const [file,hash]of Object.entries(approvedSources))if(createHash('sha256').update(await readFile(file)).digest('hex')!==hash)throw Error();
+            const [fixture,memory,response,font]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json','response-path-proof.json','font-observed-proof.json'].map(load));
+            const fingerprint=await safetyFingerprint();
+            if([fixture,memory,response].some(p=>p.status!=='passed'||p.run_sha!==sha||p.safety_fingerprint!==fingerprint||p.outbound_forwarding!==0))throw Error();
+            if(!/^Chrome\/\d+\.\d+\.\d+\.\d+$/.test(fixture.chrome)||[memory,response].some(p=>p.chrome!==fixture.chrome)||fixture.cleanup!=='complete'||fixture.json_readback!==true||fixture.ui_resumes!==0||memory.continued_requests!==0||memory.blocked_requests<3)throw Error();
+            const guards=['positive-render','POST-and-external-denied','popup-stopped','worker-stopped','iframe-stopped','loss-stopped','mutation-stopped','websocket-no-handshake'];
+            if(JSON.stringify(fixture.cases)!==JSON.stringify(guards))throw Error();
+            if(JSON.stringify(response.cases?.map(c=>c.case))!==JSON.stringify(['parallel_success','network','missing_metadata','redirect'])||response.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const names=['font_ok','font_status','font_bad_mime','font_private','font_disconnect','font_cors','font_redirect','font_missing_finish','font_wrong_session','font_mismatch_url','font_denied','font_write','font_credentials','font_late_final_failure','guard_popup','guard_worker','guard_loss','guard_mutation','guard_websocket'];
+            if(font.status!=='passed'||font.outbound_forwarding!==0||font.live_pages_attempted!==0||font.json_readback!==true||JSON.stringify(font.cases?.map(c=>c.case))!==JSON.stringify(names)||font.cases.some(c=>c.status!=='passed'||c.cleanup!=='complete'||c.outbound_forwarding!==0||c.chrome!==fixture.chrome))throw Error();
+            const bytes=await readFile('font-observed-lighthouse-report.json');
+            const report=JSON.parse(bytes.toString('utf8'));
+            if(createHash('sha256').update(bytes).digest('hex')!==font.report_sha256||JSON.stringify(report)!==JSON.stringify(font.lighthouse))throw Error();
+            const f=report.fonts,t=report.settings?.throttling;
+            if(report.status!=='adopted'||report.chrome!==fixture.chrome||report.lighthouse!=='13.6.0'||report.cleanup!=='complete'||report.outbound_forwarding!==0||report.url_identity_validated!==true||report.screenshots_saved!==0||report.settings.formFactor!=='mobile'||report.settings.throttlingMethod!=='simulate'||t.rttMs!==300||t.throughputKbps!==800||t.cpuSlowdownMultiplier!==6)throw Error();
+            if(!f?.adoptable||f.expected<1||f.verified!==f.expected||f.unbound!==0||f.incomplete!==0||f.fatal!==null||f.phase!=='SEALED'||f.minimum_required!==1||f.observation!=='VERIFIED_FONTS'||f.after_seal_events!==0||report.measurement_boundary!=='AFTER_FINAL_BROWSER_OPERATION_AND_PRIMARY_SESSION_FENCE')throw Error();
+            const stageProof=await load('real-chrome-stage-proof.json'),st=stageProof.stages;
+            if(stageProof.status!=='passed'||stageProof.workflow_sha!==sha||stageProof.fingerprint!==fingerprint||stageProof.chrome!==fixture.chrome||stageProof.lighthouse!=='13.6.0'||stageProof.outbound_forwarding!==0||stageProof.live_pages_attempted!==0||stageProof.cleanup!=='complete'||stageProof.fonts_expected<1||stageProof.fonts_verified!==stageProof.fonts_expected||st.complete!==true||st.limitation!==null||st.cause!=='NOT_ATTRIBUTED'||st.observation!=='OBSERVED'||st.phase!=='CLEANUP'||st.cleanup_guard_stop||st.cleanup_callbacks_saturated||Object.values(st.outstanding).some(n=>n!==0)||st.counts.TRACE_START_SENT!==1||st.counts.TRACE_START_COMPLETE!==1||st.counts.TRACE_END_SENT!==1||st.counts.TRACE_END_COMPLETE!==1||st.counts.STREAM_READY!==1||!(st.counts.TRACE_READ_SENT>=1)||st.counts.TRACE_READ_COMPLETE!==st.counts.TRACE_READ_SENT||st.counts.SCRIPT_SOURCE_SENT!==st.counts.SCRIPT_SOURCE_COMPLETE)throw Error();
+            const traceProof=await load('trace-read-real-proof.json');
+            if(!validBrowserTraceProof(traceProof,sha,fingerprint)||traceProof.chrome!==fixture.chrome||createHash('sha256').update(await readFile('tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs')).digest('hex')!=='7db04f4b00a9d66073e12be2bcab3975dd829dae0b5fd16124c55fc11464bc24')throw Error();
+            const late=font.cases.find(c=>c.case==='font_late_final_failure');
+            if(late.pre_final_adoptable!==true||late.finalization_rejected!==true||late.adoptable!==false||late.performance!==null)throw Error();
+            const detachProof=await load('detach-browser-proof.json');if(!validDetachBrowserProof(detachProof,sha,fingerprint)||detachProof.chrome!==fixture.chrome)throw Error();
+            const result={kind:'one-shot-trace-read-admission',status:'passed',workflow_sha:sha,measuring_baseline:'eaec5e186c89192f4855d73261eb068d624e89ac',chrome:fixture.chrome,closed_cases:font.cases.length,verified_fonts:f.verified,live_navigation_limit:1};
+            await writeFile('one-shot-admission.json',JSON.stringify(result),{mode:0o600});
+            await appendFile(process.env.GITHUB_OUTPUT,'ready=true\n');
+            console.log(JSON.stringify(result));
+          } catch {
+            console.log('{"kind":"one-shot-trace-read-admission","status":"rejected","reason":"CLOSED_PROOF_OR_SCOPE_INVALID"}');
+            process.exitCode=1;
+          }
+          JS
+      - name: Exactly one authorized staging ja navigation
+        if: >-
+          success() && steps.admission.outputs.ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.event.head_commit.message == 'diagnostic: detach boundary staging ja once (20261121-h1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import{spawnSync}from'node:child_process';import{readFile,writeFile,appendFile}from'node:fs/promises';import{createHash}from'node:crypto';
+          import{safeDetachEvidence}from'./tools/cdp-startup-diagnostic/detach-evidence.mjs';
+          import{safeVisibleEvidence}from'./tools/cdp-startup-diagnostic/visible-evidence.mjs';
+          import{safeInputLimitDiagnostic}from'./tools/cdp-startup-diagnostic/fixture-gateway.mjs';
+          import{STAGING_TARGET}from'./tools/cdp-startup-diagnostic/staging-gateway.mjs';
+          const eventNames=new Set(['TRACE_START_SENT','TRACE_START_COMPLETE','TRACE_START_ERROR','TRACE_END_SENT','TRACE_END_COMPLETE','TRACE_END_ERROR','STREAM_READY','TRACE_READ_SENT','TRACE_READ_COMPLETE','TRACE_READ_ERROR','SCRIPT_SOURCE_SENT','SCRIPT_SOURCE_COMPLETE','SCRIPT_SOURCE_ERROR','UNSCOPED_IO_READ_SENT','UNMATCHED_REPLY','INVALID_REPLY','INVALID_COMMAND','INVALID_STREAM','GUARD_STOP']);
+          const limitations=new Set(['INTERNAL_ENUM','COUNT_LIMIT','BUFFER_LIMIT','INVALID_COMMAND','PENDING_LIMIT','DUPLICATE_COMMAND','TRACE_PROVENANCE','SEND_FAILED','DUPLICATE_REPLY','INVALID_REPLY','UNMATCHED_REPLY','INTERNAL_ERROR','NO_CONTEXT']);
+          const one=(v,set,fallback)=>set.includes(v)?v:fallback;
+          const integer=(v,max)=>Number.isInteger(v)&&v>=0&&v<=max?v:null;
+          function stages(v){
+           if(!v||v.cause!=='NOT_ATTRIBUTED'||!Array.isArray(v.events)||v.events.length>64)throw Error();
+           const events=v.events.map(e=>{if(!eventNames.has(e.event)||integer(e.sequence,64)===null||e.sequence<1)throw Error();return{sequence:e.sequence,event:e.event};});
+           const counts={};for(const k of eventNames)if(v.counts?.[k]!==undefined){const n=integer(v.counts[k],255);if(n===null)throw Error();counts[k]=n;}
+           const outstanding={};for(const k of ['TRACE_START','TRACE_END','TRACE_READ','SCRIPT_SOURCE']){const n=integer(v.outstanding?.[k],64);if(n===null)throw Error();outstanding[k]=n;}
+           return{observation:one(v.observation,['OBSERVED','NO_STAGE_LOG','NO_CONTEXT','UNAVAILABLE'],'UNAVAILABLE'),complete:v.complete===true,limitation:v.limitation===null?null:limitations.has(v.limitation)?v.limitation:'INTERNAL_ERROR',phase:one(v.phase,['OBSERVING','STOPPED','CLEANUP'],'UNKNOWN'),events,counts,outstanding,cause:'NOT_ATTRIBUTED',cleanup_started:v.cleanup_started===true,cleanup_callbacks:integer(v.cleanup_callbacks,255),cleanup_callbacks_saturated:v.cleanup_callbacks_saturated===true,cleanup_guard_stop:v.cleanup_guard_stop===true};
+          }
+          const traceFailures=new Set(["CDP_INPUT_LIMIT", "GUARD_STOPPED", "PREREQUISITE", "TRACE_READ_AFTER_END", "TRACE_READ_BYTE_LIMIT", "TRACE_READ_CLOSE_DUPLICATE", "TRACE_READ_COMMAND_FAILED", "TRACE_READ_CONCURRENT", "TRACE_READ_CORRELATION", "TRACE_READ_COUNT_LIMIT", "TRACE_READ_DEADLINE", "TRACE_READ_DUPLICATE", "TRACE_READ_INCOMPLETE", "TRACE_READ_LATE_EVENT", "TRACE_READ_OFFSET", "TRACE_READ_PROVENANCE", "TRACE_READ_RESPONSE", "TRACE_READ_SIZE"]);
+          // Only the producer's fixed result codes are public; no error text is copied.
+          const resultFailures=new Set(['PREREQUISITE','BROWSER_CHANGED','LIVE_RESULT_SCOPE','LIVE_SETTINGS_OR_VERSION','LIVE_NUMERIC_EVIDENCE','LIVE_METRIC','LIVE_FONT_VALIDATION','LIVE_VISIBLE_CONTENT','LIVE_CLEANUP','LIVE_READBACK','MEASUREMENT_GUARD_FAILED','MEASUREMENT_FONT_VALIDATION','MEASUREMENT_SEAL_INVALIDATED','LIVE_SETUP_OR_MEASUREMENT_FAILED','LIVE_DEADLINE','EXPLICIT_EXECUTE_REQUIRED','INTERNAL_FAILED']);
+          const runtimeCodes=new Set(['NO_FCP','NO_LCP','ERRORED_DOCUMENT_REQUEST','CHROME_INTERSTITIAL_ERROR','PAGE_HUNG','PROTOCOL_TIMEOUT','NO_DOCUMENT_REQUEST','OTHER']);
+          function execution(d){
+           const unknown={reason:'OTHER_FIXED_FAILURE',runtime_error_code:'UNKNOWN',lighthouse_outcome:'UNKNOWN'};
+           if(d?.kind!=='restricted-staging-lighthouse-cli'||!['success','measurement_failed','stopped_before_measurement'].includes(d.status))return unknown;
+           const reason=d.status==='success'?null:resultFailures.has(d.reason)||traceFailures.has(d.reason)?d.reason:'OTHER_FIXED_FAILURE';
+           const c=d.response_diagnostic?.counts;
+           const n=k=>c&&Object.hasOwn(c,k)?integer(c[k],1):0;
+           const start=n('LIGHTHOUSE_START'),returned=n('LIGHTHOUSE_RETURN'),rejected=n('LIGHTHOUSE_REJECT');
+           let outcome='UNKNOWN';
+           if(c&&typeof c==='object'&&!Array.isArray(c)&&[start,returned,rejected].every(v=>v!==null)){
+            if(start===0&&returned===0&&rejected===0)outcome='NO_EVENTS_RECORDED';
+            if(start===1&&returned===0&&rejected===0)outcome='PENDING';
+            if(start===1&&returned===1&&rejected===0)outcome='RETURNED';
+            if(start===1&&returned===0&&rejected===1)outcome='REJECTED';
+           }
+           if(!['LIGHTHOUSE','SAVE_READBACK'].includes(d.stage)&&outcome!=='NO_EVENTS_RECORDED')outcome='UNKNOWN';
+           // A runtime code is recorded only after Lighthouse returned an LHR.
+           const runtime=outcome==='RETURNED'?(d.runtime_error_code===null?null:runtimeCodes.has(d.runtime_error_code)?d.runtime_error_code:'UNKNOWN'):d.runtime_error_code===null?null:'UNKNOWN';
+           return{reason,runtime_error_code:runtime,lighthouse_outcome:outcome};
+          }
+          function traceRead(p){if(!p)return null;return{observation:one(p.observation,['OWN_TRACE','NOT_OBSERVED'],'UNKNOWN'),adoptable:p.adoptable===true,reads:integer(p.reads,1024),completed:integer(p.completed,1024),bytes:integer(p.bytes,33554432),eof:p.eof===true,close_confirmed:p.close_confirmed===true,pending:integer(p.pending,4),uncommitted:integer(p.uncommitted,4),phase:one(p.phase,['MEASURING','SEALED','STOPPED','CLEANUP'],'UNKNOWN'),failure:p.failure===null?null:traceFailures.has(p.failure)?p.failure:'OTHER_FIXED_FAILURE',late_events:integer(p.late_events,1024)};}
+          function fonts(f){if(!f)return null;return{expected:integer(f.expected,256),verified:integer(f.verified,256),unbound:integer(f.unbound,256),incomplete:integer(f.incomplete,256),adoptable:f.adoptable===true,phase:one(f.phase,['MEASURING','SEALED','CLEANUP'],'UNKNOWN'),observation:one(f.observation,['VERIFIED_FONTS','NO_FONTS_OBSERVED','INCOMPLETE','INVALID'],'UNKNOWN')};}
+          try{
+           const child=spawnSync('env',['-u','GITHUB_STEP_SUMMARY',process.execPath,'tools/cdp-startup-diagnostic/staging-once.mjs','--execute'],{encoding:'utf8',timeout:150000,maxBuffer:1048576});
+           const d=JSON.parse(await readFile('staging-lighthouse-status.json','utf8'));
+           let metrics=null,performance=null,readback=false;
+           if(d.status==='success'){
+            const tr=traceRead(d.trace_read);if(!tr||tr.observation!=='OWN_TRACE'||!tr.adoptable||tr.failure!==null||!tr.eof||!tr.close_confirmed||tr.pending!==0||tr.uncommitted!==0||tr.late_events!==0||!(tr.reads>0)||tr.completed!==tr.reads||!(tr.bytes>0))throw Error();
+            const bytes=await readFile('staging-lighthouse-report.json');const report=JSON.parse(bytes.toString('utf8'));
+            if(child.status!==0||d.json_readback!==true||d.cleanup!=='complete'||d.documents!==1||d.http_status!==200||d.screenshots_saved!==0||[d.requested_url,d.final_url,d.final_displayed_url].some(x=>x!==STAGING_TARGET)||createHash('sha256').update(bytes).digest('hex')!==d.report_sha256||report.performance!==d.performance||JSON.stringify(report.metrics)!==JSON.stringify(d.metrics)||!Number.isInteger(d.performance)||d.performance<0||d.performance>100)throw Error();
+            metrics={};for(const k of ['fcp','lcp','tbt','cls','si']){if(!Number.isFinite(d.metrics[k])||d.metrics[k]<0)throw Error();metrics[k]=d.metrics[k];}performance=d.performance;readback=true;
+           }
+           const result={kind:'public-staging-stage-result',workflow_sha:process.env.GITHUB_SHA,status:one(d.status,['success','measurement_failed','stopped_before_measurement'],'INVALID_RESULT'),stage:one(d.stage,['PREREQUISITE','PUBLIC_DNS_AND_GUARD','LIGHTHOUSE','SAVE_READBACK'],'UNKNOWN'),...execution(d),visible:safeVisibleEvidence(d.visible_diagnostic),detach:safeDetachEvidence(d.detach_diagnostic),documents:integer(d.documents,1),http_status:integer(d.http_status,599),input:safeInputLimitDiagnostic(d.cdp_input_diagnostic),stages:stages(d.cdp_stages),fonts:fonts(d.font_proof??d.fonts),trace_read:traceRead(d.trace_read),cleanup:one(d.cleanup,['complete','failed','not-started'],'UNKNOWN'),performance,metrics,json_readback:readback,cause:'NOT_ATTRIBUTED'};
+           await writeFile('public-stage-result.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,'```json\n'+JSON.stringify(result)+'\n```\n');
+           if(result.status!=='success')process.exitCode=1;
+          }catch{
+           const result={kind:'public-staging-stage-result',status:'INVALID_RESULT',reason:'PUBLIC_RESULT_VALIDATION_FAILED',performance:null,cause:'NOT_ATTRIBUTED'};
+           await writeFile('public-stage-result.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));process.exitCode=1;
+          }
+          JS
+      - name: Fixed-enum capture comparison only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detach-boundary-one-authorized-attempt
+          path: |
+            offline-unit-proof.json
+            real-chrome-stage-proof.json
+            trace-read-real-proof.json
+            one-shot-admission.json
+            public-stage-result.json
+            detach-browser-proof.json
+          retention-days: 3
+          if-no-files-found: ignore

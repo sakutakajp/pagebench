@@ -29,14 +29,15 @@ async function offlineCliFixture(){
  const common={status:'passed',run_sha:sha,safety_fingerprint:fingerprint,outbound_forwarding:0,chrome:'Chrome/1.2.3.4'};
  const proofFiles={'fixture-lighthouse-status.json':common,'staging-memory-proof.json':common,'response-path-proof.json':{...common,cases:['parallel_success','network','missing_metadata','redirect'].map(c=>({case:c,status:'passed',chrome:common.chrome,cleanup:'complete',outbound_forwarding:0}))}};
  if(scenario==='stale_proof')proofFiles['staging-memory-proof.json']={...common,safety_fingerprint:'0'.repeat(64)};
- const writes=[],order=[],logs=[];let cleanupCalls=0,openCalls=0,gets=0,parsesAtReject=null,cleanupResult;
+ const writes=[],order=[],logs=[];let cleanupCalls=0,openCalls=0,gets=0,parsesAtReject=null,cleanupResult,detached=false;const paired=scenario.startsWith('detach_');
  const proxy={stats:{fatal:null,resolved_hosts:0},enable(){order.push('PROXY_MEMORY_ENABLE');},disable(){order.push('PROXY_MEMORY_DISABLE');}};
- const wire={send(raw){const m=JSON.parse(raw);queueMicrotask(()=>{if(m.method==='Tracing.end')wire.onmessage(JSON.stringify({sessionId:m.sessionId,method:'Tracing.tracingComplete',params:{stream:'PRIVATE_TRACE'}}));const result=m.method==='IO.read'?{data:'{\"traceEvents\":[]}',eof:true}:{};wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result}));});},close(){}};
+ const wire={send(raw){const m=JSON.parse(raw);if(m.method==='Target.detachFromTarget'){order.push('DETACH_FORWARDED');detached=true;}queueMicrotask(()=>{if(m.method==='Target.detachFromTarget')wire.onmessage(JSON.stringify({method:'Target.detachedFromTarget',params:{sessionId:m.params.sessionId}}));if(m.method==='Tracing.end')wire.onmessage(JSON.stringify({sessionId:m.sessionId,method:'Tracing.tracingComplete',params:{stream:'PRIVATE_TRACE'}}));const result=m.method==='Page.getFrameTree'?{frameTree:{frame:{id:'FRAME',loaderId:detached&&scenario==='detach_wrong_loader'?'LOADER2':'LOADER1',url:'https://staging.hirameki.dev/ja/'}}}:m.method==='IO.read'?{data:'{\"traceEvents\":[]}',eof:true}:{};wire.onmessage(JSON.stringify({id:m.id,sessionId:m.sessionId,result}));});},close(){}};
  const gateway=new StagingGateway(wire,()=>order.push('EMERGENCY'));
- gateway.primary='P';gateway.sessions.set('P',{ready:true,frame:'FRAME'});gateway.released=true;
+ gateway.createdPage='CREATED';gateway.primary='P';gateway.sessions.set('P',{ready:true,frame:'FRAME'});gateway.released=true;
  Object.assign(gateway.stats,{live_documents:1,http_status:200,html200:true,html_validated:true});
  const clientReplies=new Map();let clientId=100;gateway.onmessage=raw=>{const m=JSON.parse(raw),pending=clientReplies.get(m.id);if(pending){clientReplies.delete(m.id);pending(m.result);}};
  const clientCommand=(method,params={})=>new Promise(resolve=>{const id=++clientId;clientReplies.set(id,resolve);gateway.send(JSON.stringify({id,sessionId:'P',method,params}));});
+ const rootCommand=(method,params)=>new Promise(resolve=>{const id=++clientId;clientReplies.set(id,resolve);gateway.send(JSON.stringify({id,method,params}));});
  const ownTrace=async()=>{await clientCommand('Tracing.start',{transferMode:'ReturnAsStream'});await clientCommand('Tracing.end');await clientCommand('IO.read',{handle:'PRIVATE_TRACE'});await clientCommand('IO.close',{handle:'PRIVATE_TRACE'});};
  const inject=async()=>{
   const original=JSON.parse;let parsed=0;JSON.parse=(...args)=>{parsed++;return original(...args);};
@@ -49,7 +50,8 @@ async function offlineCliFixture(){
   parsesAtReject=parsed;
   if(scenario==='nontext_then_oversize')await gateway.receive(' '.repeat(1048577));
  };
- const ctx={gateway,proxy,chrome:common.chrome,page:{url:()=> 'https://staging.hirameki.dev/ja/',evaluate:async()=>{
+ const ctx={gateway,proxy,chrome:common.chrome,page:{url:()=> 'https://staging.hirameki.dev/ja/',evaluate:async(fn,arg)=>{
+  if(paired){const changed=scenario==='detach_changed';const chars=detached&&changed?0:40;const rects=()=>chars?[{width:100,height:20}]:[];const main={tagName:'MAIN',parentElement:null,hidden:false,style:{display:chars?'block':'none',visibility:'visible'}};const h={tagName:'H1',parentElement:main,hidden:false,style:{display:'block',visibility:'visible'},closest:()=>main,getClientRects:rects};const root={__vue_app__:{config:{globalProperties:{$nuxt:{isHydrating:false}}}}};if(fn.name==='sampleDetachDocument')order.push(detached?'SAMPLE_AFTER':'SAMPLE_BEFORE');return(await import('node:vm')).runInNewContext('('+fn.toString()+')(arg)',{arg,document:{body:{innerText:'x'.repeat(chars),textContent:'known DOM content exceeding minimum',getClientRects:()=>[{width:412,height:823}]},querySelectorAll:()=>[h],querySelector:()=>root,readyState:'complete'},window:{getComputedStyle:n=>n.style},location:{href:'https://staging.hirameki.dev/ja/'},innerWidth:detached&&changed?980:412,innerHeight:823});}
   order.push('FINAL_PAGE_OPERATION');if(scenario==='late_oversize')await inject();
   if(scenario==='diagnostic_only')return{body_characters:40,headings:1,flags:{document_url_matches:false,viewport_matches_report:false,hydration:'HYDRATING'}};
   if(scenario.startsWith('visible_'))return{body_characters:scenario==='visible_no_heading'?40:0,headings:scenario==='visible_short'?1:0,flags:{document_url_matches:true,body_text_minimum_met:scenario==='visible_no_heading',headings_present:scenario==='visible_short',hydration:'HYDRATING'}};
@@ -74,17 +76,18 @@ async function offlineCliFixture(){
   pinnedTunnel:async()=>proxy,
   lighthouse:async()=>{
    order.push('LIGHTHOUSE_MEMORY');
-   if(scenario==='diagnostic_only'||scenario.startsWith('visible_')||['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
+   if(paired||scenario==='diagnostic_only'||scenario.startsWith('visible_')||['positive','exact_boundary','late_oversize','after_seal'].includes(scenario))await ownTrace();
    if(['nontext','oversize','nontext_then_oversize','cleanup_failure'].includes(scenario))await inject();
    if(scenario==='exact_boundary'){
     const empty=JSON.stringify({id:99,result:{value:''}});
     await gateway.receive(JSON.stringify({id:99,result:{value:'a'.repeat(1048576-empty.length)}}));
    }
+   if(paired){gateway.sessions.set('AUX',{ready:true,auxiliary:true,frame:'FRAME'});await rootCommand('Target.detachFromTarget',{sessionId:'AUX'});}
    return{lhr:report};
   },logger:{events:new EventEmitter()},
  };
  const mock=name=>'data:text/javascript,'+encodeURIComponent(name);
- const hooks=registerHooks({resolve(specifier,context,next){
+ const hooks=registerHooks({load(url,context,next){const r=next(url,context);if(['SWAP','DUP_AFTER'].includes(process.env.FIXTURE_MUTATE)&&url===new URL('detach-evidence.mjs',base).href){const source=Buffer.from(r.source).toString();assert(source.includes('before:summary(a),after:summary(b)'));return{...r,source:source.replace('before:summary(a),after:summary(b)',process.env.FIXTURE_MUTATE==='SWAP'?'before:summary(b),after:summary(a)':'before:summary(b),after:summary(b)')};}return r;},resolve(specifier,context,next){
   if(['node:net','net','node:http','http','node:https','https','node:tls','tls','node:dns','dns','node:dgram','dgram','node:child_process','child_process','undici','ws'].includes(specifier))throw Error('NETWORK_OR_PROCESS_FORBIDDEN');
   if(context.parentURL===entryURL){
    if(specifier==='./fixture-runner.mjs')return{url:mock('export const openGuarded=globalThis.__pagebenchOfflineDoubles.openGuarded;'),shortCircuit:true};
@@ -107,7 +110,7 @@ async function offlineCliFixture(){
   else{assert.equal(status.cdp_stages.cause,'NOT_ATTRIBUTED');assert(status.cdp_stages.events.length<=64);assert(!JSON.stringify(status.cdp_stages).includes('SYNTHETIC_PRIVATE'));}
   if(scenario==='stale_proof')assert.equal(status.cdp_stages.observation,'NO_CONTEXT');
   assert.equal((await fs.stat(join(dir,'staging-lighthouse-status.json'))).mode&0o777,0o600);
-  const files=await fs.readdir(dir);const adopted=['positive','exact_boundary','diagnostic_only'].includes(scenario);
+  const files=await fs.readdir(dir);const adopted=['positive','exact_boundary','diagnostic_only','detach_stable','detach_wrong_loader'].includes(scenario);
   if(adopted){
    assert.equal(status.status,'success');assert.equal(status.json_readback,true);
    assert.equal(status.trace_read.observation,'OWN_TRACE');assert.equal(status.trace_read.reads,1);assert.equal(status.trace_read.completed,1);assert.equal(status.trace_read.close_confirmed,true);assert.equal(status.trace_read.failure,null);
@@ -128,6 +131,7 @@ async function offlineCliFixture(){
    if(scenario!=='after_seal')assert(order.indexOf('EMERGENCY')<order.indexOf('CLEANUP'));
    assert.equal(order.filter(x=>x==='EMERGENCY').length,1);
   }
+  if(paired){const d=status.detach_diagnostic;assert.equal(order.filter(v=>v==='DETACH_FORWARDED').length,1);assert(order.indexOf('SAMPLE_BEFORE')<order.indexOf('DETACH_FORWARDED'));assert(order.indexOf('DETACH_FORWARDED')<order.indexOf('SAMPLE_AFTER'));assert(!JSON.stringify(d).includes('LOADER1'));assert(!JSON.stringify(d).includes('LOADER2'));assert(!JSON.stringify(d).includes('CREATED'));if(scenario==='detach_wrong_loader'){assert.equal(d.status,'INVALID_PAIR');assert.equal(d.reason,'NAVIGATION_CHANGED');}else{assert.equal(d.status,'OBSERVED');assert.equal(d.before.body_text,'GE20');assert.equal(d.after.body_text,scenario==='detach_changed'?'LT20':'GE20');assert.equal(d.changes.chars,scenario==='detach_changed'?'DECREASED':'UNCHANGED');assert.equal(d.changes.width,scenario==='detach_changed'?'INCREASED':'UNCHANGED');}if(scenario==='detach_changed')assert.equal(status.reason,'LIVE_VISIBLE_CONTENT');}
   if(scenario==='diagnostic_only'){assert.equal(status.status,'success');assert.equal(status.visible_diagnostic.document_url_matches,false);assert.equal(status.visible_diagnostic.viewport_matches_report,false);assert.equal(status.visible_diagnostic.hydration,'HYDRATING');}
   if(scenario.startsWith('visible_')){assert.equal(status.reason,'LIVE_VISIBLE_CONTENT');assert.equal(cleanupCalls,1);assert.equal(status.visible_diagnostic.body_text_minimum_met,scenario==='visible_no_heading');assert.equal(status.visible_diagnostic.headings_present,scenario==='visible_short');assert.equal(status.visible_diagnostic.page_url_matches,true);assert.equal(status.visible_diagnostic.document_url_matches,true);assert.equal(status.visible_diagnostic.hydration,'HYDRATING');assert.equal(status.visible_counts,undefined);assert(!JSON.stringify(status.visible_diagnostic).includes('https:'));}
   if(scenario==='stale_proof'){assert.equal(openCalls,0);assert.equal(status.reason,'PREREQUISITE');assert.equal(status.cdp_input_diagnostic,null);assert.deepEqual(files,['staging-lighthouse-status.json']);}
@@ -139,7 +143,7 @@ async function offlineCliFixture(){
  }
 }
 
-for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary','visible_short','visible_no_heading','visible_both','diagnostic_only']){
+for(const scenario of ['nontext','oversize','nontext_then_oversize','late_oversize','after_seal','cleanup_failure','stale_proof','default_dry','positive','exact_boundary','visible_short','visible_no_heading','visible_both','diagnostic_only','detach_stable','detach_changed','detach_wrong_loader']){
  test('offline exact staging CLI: '+scenario,()=>{
   const child=spawnSync(process.execPath,['--input-type=module','-e',`(${offlineCliFixture.toString()})().catch(()=>{console.log('{"fixture":true,"status":"failed","reason":"OFFLINE_FIXTURE_ASSERTION"}');process.exitCode=1;});`],{
    env:{GITHUB_SHA:'a'.repeat(40),FIXTURE_SCENARIO:scenario,FIXTURE_ENTRY:new URL('./staging-once.mjs',import.meta.url).pathname},encoding:'utf8',timeout:15000,maxBuffer:65536,
@@ -162,3 +166,7 @@ test('candidate sources belong to current proof fingerprint; stale proofs fail c
  const hash=await safetyFingerprint();assert.match(hash,/^[a-f0-9]{64}$/);const source=await readFile(new URL('./proof.mjs',import.meta.url),'utf8');for(const name of ['fixture-gateway.mjs','staging-once.mjs'])assert(source.includes("'"+name+"'"));
  const common={status:'passed',safety_fingerprint:hash,run_sha:'a'.repeat(40),outbound_forwarding:0,chrome:'Chrome/1.2.3.4'};const response={...common,cases:['parallel_success','network','missing_metadata','redirect'].map(c=>({case:c,status:'passed',chrome:common.chrome,cleanup:'complete',outbound_forwarding:0}))};assert.equal(prerequisitesValid(common,common,response,hash,common.run_sha),true);assert.equal(prerequisitesValid(common,{...common,safety_fingerprint:'0'.repeat(64)},response,hash,common.run_sha),false);
 });
+
+// Mutation control: run the SAME measurement entrance and assertions, changing
+// only the observer's before/after projection. Passing would expose a weak test.
+test('actual entry assertions reject swapped phases or two copies of the post-detach observation',()=>{for(const mutation of ['SWAP','DUP_AFTER']){const child=spawnSync(process.execPath,['--input-type=module','-e',`(${offlineCliFixture.toString()})().catch(()=>{console.log('{"fixture":true,"status":"failed","reason":"OFFLINE_FIXTURE_ASSERTION"}');process.exitCode=1;});`],{env:{GITHUB_SHA:'a'.repeat(40),FIXTURE_SCENARIO:'detach_changed',FIXTURE_MUTATE:mutation,FIXTURE_ENTRY:new URL('./staging-once.mjs',import.meta.url).pathname},encoding:'utf8',timeout:15000,maxBuffer:65536});assert.equal(child.error,undefined);assert.equal(child.status,1);assert.equal(JSON.parse(child.stdout.trim()).status,'failed');}});
