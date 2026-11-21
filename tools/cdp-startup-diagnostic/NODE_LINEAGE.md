@@ -1,0 +1,29 @@
+# 同じFCP文書のNode/ID/hydration診断（未公開候補）
+
+親は02bea4e0c41333e2adcee6a4991b149271d53348。前回の実行44882104128とは別のローカル候補。今回のサイト通信/push/Actionsは0。歴史版aa57e228のSSRがmain/home-titleを含む200であるという親側の閉域確認は、現在の配信やhydrationの証明にしない。
+
+## 実入口
+stagingOnceはinstallNodeLineageを使用する。この合成器は元のinstallMainPaintEvidenceのexact target/frame/loaderのnavigationとFCP、正常Trace start ACK、own Trace end送出による採取時機をそのまま使う。FCP callback内で参照を確保してからmainのsampleを取得し、Trace end callback内で同じ参照の状態を読んでからmainのsampleを取得する。first sampleはFCP時刻そのものではない。設置前の変化やサンプル間のピクセル表示は未観測。
+
+isolated realmのJSHandle内で元main/h1を保持。メインworldにはgettersを読むだけで、windowへのプロパティ追加・DOM属性変更・Nuxt hook置換はしない。MutationObserverはid属性、childList、characterData。raw属性値/oldValue、本文、HTML、画像、URL、Chrome ID、生Traceを保存しない。id_changedは属性のmutation通知で、同値再代入もあり得る。関係分類は端点の接続/参照/既知IDの一致と、取り外し/復帰の記録を併用する。
+
+全documentのsubtree監視はしない。外側祖先chainの直接childList（32段/64watch target）、main自身のidと直接childList、heading自身のid/限定subtreeを監視する。無関係recordは参照追跡の128関連record/32固定event予算を使わず、subtree/text変更boolは最初の1回に集約する。callback全体512records、1record追加/削除node128も処理時間の防御上限。超過はEVENT_LIMIT/RELEVANT_RECORD_LIMIT/NODE_LIST_LIMIT/CALLBACK_LIMIT/WATCH_LIMITを区別してUNKNOWNにする。main全文の監視ではなく、限定した構造/text変化だけである。主文書/primary/target/loaderを前後fenceし、owner sessionの同一object・ready状態も確認。二度目のTrace start、同一session keyのowner差替え、競合、既存paint観測の不成立/timeout、guard lossではUNKNOWN。原正常ownerの計測後detachは、完了済みの観測を別documentへ再束縛しない。cleanupは未完の参照設置もdrainして破棄する。
+
+## 固定出力
+SAME_NODE_ID_CHANGED / REPLACED_BY_OTHER_NODE / ORIGINAL_DETACHED / REMOVED_AND_RETURNED / SAME_NODE_RETAINED / EARLY_NODE_MISSINGと、固定boolean。主本文や子の内容同一性はNOT_OBSERVED。subtree/text-node変更は通知のboolのみで、本文の変更内容を表さない。
+
+error_shellはisolated realmで main img[src="/error.webp"] に正に一致した場合だけtrue。これは歴史版の固定署名候補でありNuxt errorの発火証明ではない。相対/絶対/クエリ付き等に照合範囲を広げず、URL値を返さない。追加リクエストはしない。
+
+hydration_begin/endはmain worldで#__nuxtの既存isHydratingを読む固定enum(HYDRATING/SETTLED/UNKNOWN)で、isolated realmのMutationObserverと同じ時計/順序ではない。mutation_hydration_orderは常にINTERVAL_ONLY。同時性や因果は主張しない。
+
+初回文書応答からの歴史版同一性は、既存の公開HTML検査結果に歴史SHAへの信頼できる署名/対応がないため採用しない。マーカーやasset名だけで同一配信としない。新しいheader/値の採取は加えず deployment_comparison=NOT_COLLECTED_NO_TRUSTED_BINDING とする。
+
+## 保護と採否
+通常TLS/Chrome sandbox、公開2origin、GET/HEAD、1文書、120通常request、同時6、prefetch上限、1MiB CDP受信上限、Trace分割予算、Font passive検証、最終表示条件、seal/cleanup/saveの保護は変更しない。診断は追加観測によるCPU/GC負荷があり正式スコアではない。公開wrapperの正式performance/metricsはnull、成功時もdiagnostic値のみ、外部DB書込なし。
+
+## ローカル検証と未公開workflow案
+単体・閉域doubleは実Vue hydrationや実Chromeではない。新しい実Chrome gateはstable/id/replace/detach/return/error_shell/overflowの7条件を別profileで、固定localhost文書・外向き0・strict Lighthouse13.6.0で測り、集計JSONの保存/読戻しを要求する。owner/loader/競合/cleanup/allowlistは合成対照と既存保護gateも要求する。7条件は歴史アーカイブそのものではなく合成ページである。通常sandbox起動不可なら回避しない。
+
+候補workflowはstaging-node-lineage-once-20261121.yml。診断branch完全一致、own path、j1件名、attempt1、親SHA・正確な差分・source hash・実Chrome全gateを要求。以前のone-time workflowはそのpathに反応しない。旧closed workflowはj1件名を除外。新規live可能jobはこの1つのみ。全成功時に固定staging /ja/1回の未公開案。dispatch/rerun/自動retryや段階2/3はない。今は独立レビュー前でpush/Actions不可。
+
+修正追記: 実overflow fixtureはOBSERVER_EVENT_LIMITを必須にし、scope failureでは通らない。error.webpは固定localhost Image GETだけをfixture subclassがメモリPNGでfulfillし、upstream0と1回のmemory fulfillを検証する。query/credential/redirect等は既存fixture拒否へ戻す。production guardの許可や通信経路は不変。停止/fatal/primary不整合を各await後とCDP発行前に再照合し、停止後はhandle解放CDPも送らない（既存emergency kill/cleanupに委ねる）。関連wait cap750msと測定120sは不変。

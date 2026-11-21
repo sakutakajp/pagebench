@@ -1,0 +1,32 @@
+// Runs in Puppeteer's isolated realm. References never enter the site's globals.
+// No attribute values, text, DOM serialization, URLs or native IDs are returned.
+export function createIdentityProbe(){
+ let main=document.querySelector('main#home-content'),heading=main?.querySelector('h1#home-title')??null;
+ let active=true,limited=false,limitReason=null,records=0;const events=[],watched=new Set();
+ const flags={main:{id_changed:false,removed:false,returned:false,subtree_changed:false,text_node_changed:false},heading:{id_changed:false,removed:false,returned:false,subtree_changed:false,text_node_changed:false}};
+ const limit=reason=>{limited=true;limitReason??=reason;observer.disconnect();};
+ const mark=kind=>{if(events.length<32)events.push(kind);else limit('EVENT_LIMIT');};
+ const contains=(parent,node)=>!!parent&&!!node&&(parent===node||parent.contains?.(node));
+ const watchAncestors=()=>{for(const node of [main,heading]){let n=node?.parentElement??node?.parent,depth=0;while(n){if(++depth>32||!watched.has(n)&&watched.size>=64){limit('WATCH_LIMIT');return;}if(!watched.has(n)){watched.add(n);if(n!==main&&n!==heading)observer.observe(n,{childList:true});}n=n.parentElement??n.parent;}}};
+ const process=entries=>{if(!active||limited)return;if(entries.length>512){limit('CALLBACK_LIMIT');return;}for(const r of entries){const effects=[];
+  if(r.type==='attributes'){for(const[k,n]of[['main',main],['heading',heading]])if(n===r.target)effects.push([k,'id_changed',k==='main'?'MAIN_ID_MUTATION':'HEADING_ID_MUTATION']);}
+  else if(r.type==='childList'){if(r.removedNodes.length+r.addedNodes.length>128){limit('NODE_LIST_LIMIT');return;}for(const[k,n]of[['main',main],['heading',heading]]){if(contains(n,r.target)&&!flags[k].subtree_changed)effects.push([k,'subtree_changed',k==='main'?'MAIN_SUBTREE_MUTATION':'HEADING_SUBTREE_MUTATION']);for(const removed of r.removedNodes)if(contains(removed,n))effects.push([k,'removed',k==='main'?'MAIN_REMOVED':'HEADING_REMOVED']);for(const added of r.addedNodes)if(contains(added,n)&&(flags[k].removed||effects.some(e=>e[0]===k&&e[1]==='removed')))effects.push([k,'returned',k==='main'?'MAIN_RETURNED':'HEADING_RETURNED']);}}
+  else if(r.type==='characterData'){for(const[k,n]of[['main',main],['heading',heading]])if(contains(n,r.target)&&!flags[k].text_node_changed)effects.push([k,'text_node_changed',k==='main'?'MAIN_TEXT_NODE_MUTATION':'HEADING_TEXT_NODE_MUTATION']);}
+  if(!effects.length)continue;if(++records>128){limit('RELEVANT_RECORD_LIMIT');return;}for(const[k,flag,event]of effects){flags[k][flag]=true;mark(event);if(limited)return;}
+ }watchAncestors();};
+ const observer=new MutationObserver(process);
+ // No document subtree observer: outside chains get direct childList only.
+ if(main)observer.observe(main,{attributes:true,attributeFilter:['id'],childList:true});
+ if(heading)observer.observe(heading,{attributes:true,attributeFilter:['id'],childList:true,characterData:true,subtree:true});
+ watchAncestors();
+ const side=(key,node,current,expected)=>{let relation='UNKNOWN';if(!limited&&active){if(!node)relation='EARLY_NODE_MISSING';else if(node.isConnected){relation=current&&current!==node&&node.id===expected?'UNKNOWN':flags[key].removed&&flags[key].returned?'REMOVED_AND_RETURNED':node.id!==expected?'SAME_NODE_ID_CHANGED':'SAME_NODE_RETAINED';}else relation=current&&current!==node?'REPLACED_BY_OTHER_NODE':'ORIGINAL_DETACHED';}return{relation,early_present:!!node,original_connected:node?node.isConnected===true:null,original_id_matches:node?node.id===expected:null,marker_present:!!current,marker_is_original:!!node&&current===node,...flags[key]};};
+ return Object.freeze({sample(){if(active)process(observer.takeRecords());const m=document.querySelector('main#home-content'),h=m?.querySelector('h1#home-title')??null;const ms=document.querySelector('main'),hs=document.querySelector('main h1,main h2');return{status:active?(limited?'UNKNOWN_LIMIT':'OBSERVED'):'DISPOSED',limit_reason:limitReason,main:side('main',main,m,'home-content'),heading:side('heading',heading,h,'home-title'),error_shell:!!document.querySelector('main img[src="/error.webp"]'),broad_main_present:!!ms,broad_heading_in_main_present:!!hs,original_heading_in_original_main:!!main&&!!heading&&main.contains(heading),events:[...events],mutation_hydration_order:'INTERVAL_ONLY',content_equivalence:'NOT_OBSERVED'};},dispose(){if(!active)return;observer.disconnect();active=false;main=null;heading=null;}});
+}
+const hyd=()=>{const v=document.querySelector('#__nuxt')?.__vue_app__?.config?.globalProperties?.$nuxt?.isHydrating;return v===true?'HYDRATING':v===false?'SETTLED':'UNKNOWN';};
+export async function openIdentityEvidence(ctx,target,{expectedLoader=null,ownerValid=()=>true}={}){
+ const g=ctx.gateway,p=g.primary,t=g.createdPage,ps=g.sessions.get(p);let binding=null,handle=null,closed=false;
+ const canClean=()=>!g.stopping&&!g.stats.fatal&&g.primary===p&&g.createdPage===t&&g.sessions.get(p)===ps&&ps?.ready;
+ const check=()=>{if(!ownerValid()||closed||g.stopping||g.stats.fatal||g.primary!==p||g.createdPage!==t||g.sessions.get(p)!==ps||!ps?.ready)throw Error('IDENTITY_SCOPE');};
+ const fence=async()=>{check();const f=(await g.call('Page.getFrameTree',{},p)).frameTree?.frame;check();if(!f||f.url!==target||f.id!==ps.frame||typeof f.loaderId!=='string'||expectedLoader&&f.loaderId!==expectedLoader)throw Error('IDENTITY_SCOPE');if(binding&&binding.some((x,i)=>x!==[t,p,f.id,f.loaderId][i]))throw Error('IDENTITY_DOCUMENT_CHANGED');binding??=[t,p,f.id,f.loaderId];};
+ try{await fence();const hydration_begin=await ctx.page.evaluate(hyd);check();handle=await ctx.page.mainFrame().isolatedRealm().evaluateHandle(createIdentityProbe);await fence();return Object.freeze({async sample(){try{await fence();const hydration_end=await ctx.page.evaluate(hyd);check();const observation=await handle.evaluate(probe=>probe.sample());await fence();return{...observation,document_scope:'SAME_TARGET_PRIMARY_FRAME_LOADER',hydration_begin,hydration_end};}catch{return{status:'UNKNOWN_DOCUMENT_OR_GUARD',hydration_begin,hydration_end:'UNKNOWN',content_equivalence:'NOT_OBSERVED'};}},async dispose(){if(closed)return;closed=true;const h=handle;handle=null;binding=null;try{if(canClean())await h.evaluate(probe=>probe.dispose());}finally{if(canClean())await h.dispose();}}});}catch{if(handle){try{if(canClean())await handle.evaluate(probe=>probe.dispose());}catch{}finally{if(canClean())await handle.dispose();handle=null;}}throw Error('IDENTITY_SETUP_FAILED');}
+}
