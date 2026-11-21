@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   observe:
-    if: "github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1 && github.event.head_commit.message != 'diagnostic: fixed result evidence staging ja once (20261120-e1)' && github.event.head_commit.message != 'diagnostic: visible evidence staging ja once (20261120-f1)' && github.event.head_commit.message != 'diagnostic: shallow baseline staging ja once (20261120-g1)' && github.event.head_commit.message != 'diagnostic: detach boundary staging ja once (20261121-h1)'"
+    if: "github.ref == 'refs/heads/diag/cdp-isolated-once-20261118-b651ddd' && github.run_attempt == 1 && github.event.head_commit.message != 'diagnostic: fixed result evidence staging ja once (20261120-e1)' && github.event.head_commit.message != 'diagnostic: visible evidence staging ja once (20261120-f1)' && github.event.head_commit.message != 'diagnostic: shallow baseline staging ja once (20261120-g1)' && github.event.head_commit.message != 'diagnostic: detach boundary staging ja once (20261121-h1)' && github.event.head_commit.message != 'diagnostic: main paint staging ja once (20261121-i1)'"
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
