@@ -1,0 +1,111 @@
+name: Node lineage fixture recovery closed proof
+on:
+  push:
+    branches:
+      - diag/lineage-fixture-recovery-once-20261121
+    paths:
+      - .github/workflows/node-lineage-fixture-recovery-once-20261121.yml
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-node-lineage-fixture-recovery-once-20261121
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/lineage-fixture-recovery-once-20261121' &&
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: closed lineage fixture recovery (20261121-k1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Locked fixture-only dependencies
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Exact closed-only scope and synthetic tests
+        id: unit
+        run: |
+          node --input-type=module <<'JS'
+          import{execFileSync,spawnSync}from'node:child_process';import{writeFile,readdir}from'node:fs/promises';
+          const git=(...a)=>execFileSync('git',a,{encoding:'utf8'}).trim();
+          if(git('rev-parse','HEAD')!==process.env.GITHUB_SHA||git('rev-parse','HEAD^')!=='290db4b1df3626f7ecac441483103894df810753'||git('diff','--name-only','HEAD^','HEAD')!=='.github/workflows/node-lineage-fixture-recovery-once-20261121.yml\ntools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs\ntools/cdp-startup-diagnostic/node-lineage-fixture-recovery.test.mjs')throw Error('CLOSED_SCOPE_INVALID');
+          const files=(await readdir('tools/cdp-startup-diagnostic')).filter(x=>x.endsWith('.test.mjs')).sort().map(x=>'tools/cdp-startup-diagnostic/'+x);
+          const r=spawnSync(process.execPath,['--test',...files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});
+          const counts=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const ok=r.status===0&&counts.tests===408&&counts.pass===408&&counts.fail===0&&counts.skipped===0&&counts.cancelled===0;
+          const p={kind:'closed-recovery-unit-proof',status:ok?'passed':'failed',workflow_sha:process.env.GITHUB_SHA,...counts};await writeFile('closed-recovery-unit-proof.json',JSON.stringify(p),{mode:0o600});console.log(JSON.stringify(p));if(!ok)process.exitCode=1;
+          JS
+      - name: Compare global page capture and response-scoped capture
+        id: capture
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Actual request and response path on closed loopback fixture
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: Passive Font response monitor closed proof
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
+      - name: Recovered seven-case lineage proof on real Chrome
+        id: lineage
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs
+      - name: Require actual closed proof and readback
+        if: success()
+        env:
+          CAPTURE_READY: ${{ steps.capture.outputs.fixture_ready }}
+          LINEAGE_OUTCOME: ${{ steps.lineage.outcome }}
+        run: |
+          node --input-type=module <<'JS'
+          import{readFile}from'node:fs/promises';import{safetyFingerprint}from'./tools/cdp-startup-diagnostic/proof.mjs';import{validLineageBrowserProof}from'./tools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs';
+          const p=JSON.parse(await readFile('node-lineage-browser-proof.json','utf8'));
+          if(process.env.CAPTURE_READY!=='true'||process.env.LINEAGE_OUTCOME!=='success'||!validLineageBrowserProof(p,process.env.GITHUB_SHA,await safetyFingerprint()))throw Error('CLOSED_PROOF_INVALID');
+          console.log(JSON.stringify({kind:'closed-recovery-proof',status:'passed',workflow_sha:process.env.GITHUB_SHA,cases:p.cases.length,live_pages_attempted:0,outbound_forwarding:0}));
+          JS
+      - name: Fixed-enum capture comparison only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-lineage-fixture-recovery-proof
+          path: |
+            closed-recovery-unit-proof.json
+            node-lineage-browser-proof.json
+          retention-days: 3
+          if-no-files-found: ignore
