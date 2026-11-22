@@ -1,0 +1,38 @@
+{
+  "parent": "d46f4012875dde76489ced0edcd968e1235dcef9",
+  "role": "FIXED_STARTUP_400_JA_ONCE_NO_SCORE",
+  "unit_counts": {
+    "baseline": 474,
+    "AB": 48,
+    "strict": 27,
+    "scope": 23,
+    "bound": 40,
+    "natural": 18,
+    "reads": 51,
+    "live": 31,
+    "fixture": 178,
+    "workflow": 8,
+    "stop": 45,
+    "scoped": 29,
+    "proof": 22,
+    "run400": 43,
+    "startup": 23,
+    "integration": 29
+  },
+  "files": {
+    ".github/workflows/staging-startup400-observe-once-20261122.yml": "77698a04276a526a98873ddcf04a5a05fbd5bcc297ea4ee88825866acdfb1ae4",
+    "tools/natural-reads/STARTUP400-REVIEW.md": "c1293ff567783f721010d02b4a062cb15e689b80fcda84b34470448266dc0d6f",
+    "tools/natural-reads/startup-child.mjs": "a9a150101f39e7e612c6053f29572d36f3d5436d61f62b6c0e951159c9956318",
+    "tools/natural-reads/startup-evidence.mjs": "4916f7e39404a8e9eb8a8b08f658f9b28116211b2272847405062b323bca77ea",
+    "tools/natural-reads/startup-fixture-child.mjs": "96584a07a130c668d276185f37ff5dc7789fcc4e0964208194b7017ac0460a3d",
+    "tools/natural-reads/startup-parent.mjs": "11114dd7a186b7ef43515845ce9dda91e9b626fb73b720ffcd8bdf968651b741",
+    "tools/natural-reads/startup-preload.mjs": "cb8abd5c0b156c70be88ec574687a358e7979bb3c4f9d32ba9f4b94552ffa3e6",
+    "tools/natural-reads/startup-proof.mjs": "e39fa9c72e849c4f725feb5766e2d15be1f0babea3040cf87ec8c664c9871e51",
+    "tools/natural-reads/startup.test.mjs": "ea1f5d55619148b0ad8d69947c6cd73a0234eef9d0fed9f1e511909c641ef74b",
+    "tools/natural-reads/startup400-admission.mjs": "34d132129d345fb87804e44f6ade8ad8a7bc865d48850a55170a8945460c3b91",
+    "tools/natural-reads/startup400-child.mjs": "33c14dadc6ed447ef997cdd99e6d4859c3d7b6f9d5cf7128e5831bac21a1e206",
+    "tools/natural-reads/startup400-entry.mjs": "dcc707ccd37202a315ea59920956250828c3f939e396e8f3f91ad4c19581a697",
+    "tools/natural-reads/startup400-gateway.mjs": "7c1597bebc117cb3ee917eacf0904cb82a62b1df298d00d1b2e3ac09d2046155",
+    "tools/natural-reads/startup400.test.mjs": "b50d060d99fde7001f3e8b108b418f6503451a2c59522aaaa5442848861602a7"
+  }
+}

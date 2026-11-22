@@ -1,0 +1,24 @@
+# Unpublished startup400 successor (local review only)
+
+Parent: d46f4012875dde76489ced0edcd968e1235dcef9 (#10).
+Proposed exact ref: refs/heads/diag/startup400-observe-once-20261122.
+Subject: diagnostic: bounded startup and 400 ja observation once (20261122-ab1).
+No remote operation, GHA reservation or site contact is part of this preparation.
+
+The original failed-prone six-case top proof runs its exact existing browser/page/guard/observer logic through a Node-only instrumented supervisor/child. Historical sources and workflows are byte-identical. A native six-case proof, the same top six, the240 two-case proof and400 two-case proof must all pass on the same SHA/run/Chrome binary, then exact JIT admission, before a single conditional /ja/ navigation. No retries or manual trigger. The original gates and failure cleanup remain mandatory. Missing/malformed startup evidence additionally blocks admission; no crash becomes an expected pass.
+
+Node startup uses --import before module linking and uncaughtExceptionMonitor without suppressing strict exit/stderr semantics. The wrapper captures only native class, allowlisted own-data Node code, optional existing fixed opener phase/cleanup, and fixed phase enums. It does not capture stderr bytes, messages, stacks, paths, URLs, page contents, exception payloads or IDs. It never installs message/unhandledRejection/uncaughtException handlers that consume behavior. Errors before preload remain unknown. Monitor origin unhandledRejection can also mean an ESM loader failure, not an application Promise diagnosis.
+
+Phase changes are in RAM. At most12 atomic writes, ordinary checkpoints at PRELOAD_READY, START_GRANTED, OPEN_GUARDED_ENTER, FIRST_PROGRESS_RETURNED, FINAL_SEND_CALLBACK, PROCESS_EXIT; first error is an emergency write and secondary errors only increment a bounded RAM counter. Sidecar maximum8192 bytes,24 phase enums/eight secondary counter, first error stable. Two write slots are reserved from ordinary use. Unknown tail/lost write never claims absence. No new browser/CDP/traffic or waiting calls; one signal0 group-liveness observation after the existing group-stop fallback is not a physical browser-cleanup proof. Source gate acceptance is unchanged. Diagnostic synchronous IO may affect timing, so successful normal-sandbox real Chrome remains required and is locally unverified.
+
+Failure proof is persisted at startup-closed-proof.json FIRST, then the original natural-top-closed-proof.json. The summary reconstructs only fixed fields, retains each failed/not-run case, the original parent refusal reason, IPC vs durable journal availability and cleanup disposition, and binds a hash to the full safe proof. Sidecar exit code must agree with the actual parent close exit code. Both files are uploaded by an always() step even when the top gate fails. The exact receipt is compared by JIT to the actual producer output; missing/mixed/tampered receipts fail. File-write/upload failure cannot be promised away: it remains an unconfirmed gate, never a pass.
+
+The one-shot400 live path uses the ORIGINAL live supervisor and copied400 child/gateway/entry with only exact successor admission import/name changes. No instrumentation is injected into the live browser or live child. The copied gateway differs only in its dynamic exact admission import; request checks, cap400/ordinary240, concurrency6, natural prefetch, time/mobile conditions, origin/routes/methods/credentials/responses, sandbox/TLS and egress remain unchanged. Scores/reports/DB writes remain prohibited. No speculative Nuxt capture or new request metrics.
+
+The inherited120 Network start-map overflow can make coverage incomplete; it is not evidence of no rendering. The512-row400 meter is separate. Existing pre-FCP completed encoded bytes are across observed resources, not prefetch bytes. No repair or change to those parts here.
+
+Prior #10 discarded stderr cannot be recovered, and no Nuxt cause is established. Controlled Node process classes discriminate future failures only. The unchanged-run behavior would now retain a fixed loader/native exception/phase versus delivery/missing evidence distinction, provided preload and private artifact storage succeed.
+
+## Exact shallow-checkout prerequisite
+
+An actual depth12 local clone of the first successor lost pinned baseline2f1d1219ee1bef6c6f2c66a837b64e5a6652aea5, causing the unchanged strict and historical workflow tests to fail. That baseline is11 ancestors before #10 and12 before this successor; depth13 is the finite minimum including it. ONLY the new workflow uses depth13. Historical tests/workflows remain unchanged. The original #10 depth12 included the ancestor, so this is a deterministic successor checkout issue, not the historical browser failure. Final verification uses a fresh depth13 local clone of the final SHA.
