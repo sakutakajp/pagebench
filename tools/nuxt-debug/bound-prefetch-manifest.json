@@ -1,0 +1,10 @@
+{
+  "parent": "9aa7667aaadd3649b4a876e067f1b599f576c812",
+  "role": "LOCAL_CLOSED_CANDIDATE_NOT_LIVE",
+  "files": {
+    "tools/nuxt-debug/bound-prefetch.mjs": "8ee7f99b41a52360e879059c5b1c98dea15a56a25cb62be13cd3018acf935108",
+    "tools/nuxt-debug/prefetch-control.mjs": "009ebc6350f4c2ed351bdb20cf1b17a6f29f5eb03005d113c9f6823ab14d93cd",
+    "tools/nuxt-debug/bound-prefetch.test.mjs": "b78a23235b15be6bfa80e23d081ce41a21f984e6d3b279bcf702d4081de039c7",
+    "tools/nuxt-debug/BOUND-PREFETCH-REVIEW.md": "da8a1e85352db3368a3510fe9def50b57090c46b291373c62ce0bb73ad4564e6"
+  }
+}
