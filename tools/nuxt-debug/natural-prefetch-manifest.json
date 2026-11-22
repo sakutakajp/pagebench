@@ -1,0 +1,12 @@
+{
+  "parent": "0f09206dab0c633743fcbce9f42d70eab462a059",
+  "role": "CLOSED_ONLY_NO_UPSTREAM_ROUTE",
+  "files": {
+    ".github/workflows/natural-prefetch-closed-once-20261122.yml": "2508435bdd9d264c58407c7f1bd19dc0f060084230a17f526f0dbcdba3e099bf",
+    "tools/nuxt-debug/natural-prefetch-browser.mjs": "0f535db0ae6386ebd86b50e85d90ac8851278d0c7b7243e4585f173e0c732ee5",
+    "tools/nuxt-debug/natural-prefetch-proxy.mjs": "536bb16bcf0a4b3ec4500645797392f72db1fcfe60f35ebb79ad0b8634f56a33",
+    "tools/nuxt-debug/natural-prefetch-state.mjs": "2e0688606e009ad4d38139228da4d8d7120114a62ca8efdec5a43ac1cf94e307",
+    "tools/nuxt-debug/natural-prefetch.test.mjs": "4e63fc2563082432fef41808b76b58192c312e6ce583af1fb995f3d35ffffab8",
+    "tools/nuxt-debug/NATURAL-PREFETCH-REVIEW.md": "c8615e5eb2d547114d15975faa6b820ab1eabec0334d58d4b31f8852699818d1"
+  }
+}
