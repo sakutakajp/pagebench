@@ -1,0 +1,41 @@
+{
+  "parent": "5651ab832410e7a7d573aa2935778814395ac453",
+  "role": "HANDLED_240_JA_ONCE_NO_SCORE",
+  "unit_counts": {
+    "baseline": 474,
+    "AB": 48,
+    "strict": 27,
+    "scope": 23,
+    "bound": 40,
+    "natural": 18,
+    "reads": 51,
+    "live": 31,
+    "fixture": 178,
+    "workflow": 8,
+    "stop": 45,
+    "scoped": 29,
+    "proof": 22,
+    "push_native": 33,
+    "push_strict": 33,
+    "handled": 41
+  },
+  "files": {
+    ".github/workflows/staging-handled500-push-once-20261122.yml": "5de544f8ae64ca486c5c59ac908e8ec6e38f416b4bfe612bd7be93c0122a0043",
+    "tools/natural-reads/HANDLED-PUSH-REVIEW.md": "bc966ad417608fc29e95a99b0565f46dce7df9e5b9044178cf873f5f580d1c28",
+    "tools/natural-reads/handled-admission.mjs": "75ad412cc275a5bce45c022c31a0805e970bcfbbab6ad90fc844058aba183784",
+    "tools/natural-reads/handled-browser.mjs": "7221982225fa84b989f425411aab81409db4a90657d4daee2bfbf6738193b243",
+    "tools/natural-reads/handled-child.mjs": "9abde38c16692e52e83abc86c9c170709fc5ecec7e6177618e43d182515dcdbc",
+    "tools/natural-reads/handled-closed.mjs": "a4de6269259ce0595370d911dfc43ecb7fff33a3702211694756102c9f88408d",
+    "tools/natural-reads/handled-entry.mjs": "bd38ca6bfac75b913af55e0f49a0b553471147243b2c35bc35b91194fbd3ce93",
+    "tools/natural-reads/handled-gateway.mjs": "3652d86fb0668a98985b8722d47da274c390f6b539acd5b93cc6230f2e0b999c",
+    "tools/natural-reads/handled-integration.test.mjs": "b091dc211b7e62338036ca05b753af8699aa5160df3b87cc32f3c1064acbed02",
+    "tools/natural-reads/handled-parent.mjs": "1d14303657d67bcdc86d8ca4c1b5c549d8bc691d24d5dbf55b42b6891d76768d",
+    "tools/natural-reads/handled-push-control.mjs": "2959a72ad1289b82e8a3f21a43148cfa543f6cf696e6b8cf5b8b0ffadc9c3d1b",
+    "tools/natural-reads/handled-push.mjs": "42c2d415e1a4f03f7a498d0785bc09bebe3ae3a4c213cc2bab245a7836054338",
+    "tools/natural-reads/handled-push.test.mjs": "2835939a8cc967818dba004d98aa6a082dd9de115255f58ed14f2b25140bb247",
+    "tools/natural-reads/handled-record.mjs": "5f66a859c49cf3d70d1af157cf617cc96fe5d81d350cddbf87dde8dc598f59a5",
+    "tools/natural-reads/handled-run.mjs": "5829dc5e464218f87a3fa3fc1b19b7924b94440966648b1f58093d0ed32662b0",
+    "tools/natural-reads/handled-runtime.mjs": "e791c6fb581b4a7e70fc237fb15c2688d779a0327fafa52a9e7d29d306929794",
+    "tools/natural-reads/handled-vm.mjs": "0f9031510b969f77fe31c7aaab7b1db3dccc1b7b46a9a3443de6672d589955c2"
+  }
+}
