@@ -1,0 +1,11 @@
+{
+  ".github/workflows/staging-ab-gateway-observe-once-20261122.yml": "1de40f75f8eae528a0a4f953e7d56aa1b1450045f224379a0688128d5349cc58",
+  "tools/ab-observe/REVIEW.md": "c2c586f33ef254731723c2ee777a32be591cb7e1496864739fb422c895dc79ef",
+  "tools/ab-observe/admission.mjs": "9ffc3d6fd8c544c1467357346936870cd865bc936bbc91de50c710854537b3b4",
+  "tools/ab-observe/closed.mjs": "d873a71b5cca289a0c88d0891c7c4d5f055ba005d80173df7155acfd0ca1c775",
+  "tools/ab-observe/config.mjs": "9228b615817e58e28ed972ad65a8b268beb22ea04d7926cb28635c5d97c3029f",
+  "tools/ab-observe/gateway.mjs": "2ddaec113e876a180762b43c95cc23776cc796307dc33500b6693e1cbecdedb4",
+  "tools/ab-observe/runner.mjs": "e9c88de1607e1aeed4c979e7c6ac6471b0d88f96db1adfcce55abe1a708909ab",
+  "tools/ab-observe/state.mjs": "d0ebddfa2d8a322ca960c90dad8aafcb962e52135840d137a325dec2d7a75c20",
+  "tools/ab-observe/test.mjs": "fedba9f037acd9bf4abe3ad73a356302d28405a79bd24f1c8012eca409f59e81"
+}
