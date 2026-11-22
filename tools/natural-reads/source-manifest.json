@@ -1,0 +1,17 @@
+{
+  "parent": "4270ea66ed23a951e1267a7ff420ca6336336194",
+  "role": "CLOSED_NATURAL_READS_NOT_LIVE",
+  "files": {
+    ".github/workflows/natural-reads-closed-once-20261122.yml": "0467189cdb7b086538e5539f1894797766b1564cbf3bf68660a4e658b9e277c2",
+    "tools/natural-reads/AUDIT.md": "3c1430fee3c749d2cd9ee631d0bbf7b7acfa629ab6b5bf32fb5e37161cab1e9b",
+    "tools/natural-reads/browser.mjs": "c5de26dba8c0fe861d76d1f13920b16d6123efa7473f3287562ac8c55ffd2b4e",
+    "tools/natural-reads/control.mjs": "80f89ab758a19c474de436d3b44bb3582d2ee71e40f657458c9fdcd5895cad47",
+    "tools/natural-reads/driver-double.mjs": "30d766c19e6c658e70d257e84400bb035f9adabcce57cc413a5c40f9e3808005",
+    "tools/natural-reads/gateway.mjs": "99bbef046f81e8f6a986a78bb25a2c2aba7a5d976cbfa81b767d2b138dcaf38f",
+    "tools/natural-reads/policy.mjs": "0c3a4e6259b1aab8a2a5b24ca50e2696e9b512175b3c3ddc337dc4f11c5d9643",
+    "tools/natural-reads/public-routes.json": "963937ab3ce33b9b131fb0a0b4b7294d3603cfef8e30f1ee1cadfa86befaceb3",
+    "tools/natural-reads/runner.mjs": "8568cb92d7074ee72e7b1c57314cd7c4a8fd04346cb10b1d80de44b6d93a54a7",
+    "tools/natural-reads/signals.mjs": "b4f91831db1e83a969a0bbea7f0cbb0bf41af6a22758f968321f7761f1801b12",
+    "tools/natural-reads/test.mjs": "75b02a9a43fc13d9287f8a5246b0c0d1018f29a9f883c16a9064857d4542ddb5"
+  }
+}
