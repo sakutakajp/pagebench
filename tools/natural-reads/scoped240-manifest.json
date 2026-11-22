@@ -1,0 +1,39 @@
+{
+  "parent": "1aa55b640f77d885e247ad3a9f9aaa06e93d2b24",
+  "role": "FIXED_240_JA_ONCE_NO_SCORE",
+  "unit_counts": {
+    "baseline": 474,
+    "AB": 48,
+    "strict": 27,
+    "scope": 23,
+    "bound": 40,
+    "natural": 18,
+    "reads": 51,
+    "live": 31,
+    "fixture": 178,
+    "workflow": 8,
+    "stop": 45,
+    "scoped": 29,
+    "proof": 22
+  },
+  "files": {
+    ".github/workflows/staging-nuxt240-observe-once-20261122.yml": "9385fc48125bc9c18d768faa9efe9a92ec17a3fba601633fa2f12a4337890753",
+    "tools/natural-reads/SCOPED240-PLAN.md": "d3cd786dcecb224b9087c27dd2c3c520a280efd56f86a56545aba34626ce5595",
+    "tools/natural-reads/STOP-RECORD-LOCAL-REVIEW.md": "b82bee75139d1965038eae76f31a590641fa1cdc0e6fb1e72538d6c782c04a7e",
+    "tools/natural-reads/burst-child.mjs": "82b0c118b2b30ecd95bca85005bd1495a12c1aaa6d2f248a727a0268864dde3d",
+    "tools/natural-reads/burst-control.mjs": "adf28e279b34d281223cc068e0244abb69e07151eec4daa1ac30590cfb7f5665",
+    "tools/natural-reads/scoped240-admission.mjs": "616989351fa3d37a61fa950770c4c364969f5fc26c0fb2e5830db4cd3a856167",
+    "tools/natural-reads/scoped240-browser.mjs": "d8c450932140cfa4139c8061bea8da5b74344b4d5a1696a5e92cd7acc407f1ea",
+    "tools/natural-reads/scoped240-child.mjs": "251431256a9c636826feba1071cfccae0b2c94bba98472716933dbffcaa2f25d",
+    "tools/natural-reads/scoped240-entry.mjs": "98c6325bf7e1e390998f6fd28e56e342ae14084ccdf1267b37e7051e8b6032dc",
+    "tools/natural-reads/scoped240-gateway.mjs": "3cec2497967696b16b3618d2a3b59e86960ea47f0298be550ef0be61bc69c482",
+    "tools/natural-reads/scoped240-proof-contract.test.mjs": "4fd9a019a9e9b16f7e3387cecd7f7f2da1329fb5d11466a144cff1295e6d60df",
+    "tools/natural-reads/scoped240-proof-control.mjs": "5268bd1c34afcb4dc405feed4f6d499214f0da8d84e65261e138398b9a270317",
+    "tools/natural-reads/scoped240-record.mjs": "74f2eaa35b97f9bfece6791bf7455709133b492f807b84c486613c5d41253282",
+    "tools/natural-reads/scoped240.test.mjs": "3bc53316979adc8fa4aa4ed4903fbfa85ec3418b0b8738c5fa9eafaf3e2b9daa",
+    "tools/natural-reads/staging-limits.mjs": "bac6ce2b93b9894ac92c65d0a444bda278f28d20820d7f47f65c41ec394bfd00",
+    "tools/natural-reads/stop-census.mjs": "d22cef98cc6338dcdaa43036c56af399ba38be32c1c1f8090113118e56b43e06",
+    "tools/natural-reads/stop-record.mjs": "56089d4511002f3286955070e2e8e510d8043146c12834211fe00a8b76e82975",
+    "tools/natural-reads/stop-record.test.mjs": "21d8b0638a4dd9274140cb60b446ac0fa7d962c13e0d80ce83a229699c04e38c"
+  }
+}
