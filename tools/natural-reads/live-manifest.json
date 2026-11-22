@@ -1,0 +1,32 @@
+{
+  "parent": "063282ef31e30d21803829e0b5f3169e11e00405",
+  "role": "NATURAL_JA_ONCE_NO_SCORE",
+  "unit_counts": {
+    "baseline": 474,
+    "AB": 48,
+    "strict": 27,
+    "scope": 23,
+    "bound": 40,
+    "natural": 18,
+    "reads": 51,
+    "live": 31
+  },
+  "files": {
+    ".github/workflows/staging-natural-ja-observe-once-20261122.yml": "700d03fe88fb12a726dfb063f6d3f2ee26c360b046e33f5e7f7abf67ed0a4bea",
+    "tools/natural-reads/LIVE-PLAN.md": "93b3a9001f942f831b9a96028b43c4753a8c6af7f85853df0061a1a137294d41",
+    "tools/natural-reads/driver-double.mjs": "682b542958a7f1bbd0d5ba7b48d80124a43984d2fcdd795e58dd29d206d49787",
+    "tools/natural-reads/live-admission.mjs": "e812268a8539d9528e3bac47892aebd5e0e580e1cd2ae504620065398fe1256c",
+    "tools/natural-reads/live-child.mjs": "62c8fa0cb8ec9f3c065c69b372c33bd002b4dedd096965d0cd71abd8e0f1904d",
+    "tools/natural-reads/live-entry.mjs": "130bae5f30ff24a7aeb60355c9b2790d2dcfa3cdcc8112dd585f501776e05baa",
+    "tools/natural-reads/live-journal.mjs": "981c9bbc52c18234fc5797b12887c9d42ac612536273e0defd0093e784dba135",
+    "tools/natural-reads/live-parent.mjs": "1651f43e1ac4eff3afd5b05bf82d2baa188fb50c35ebd87f9840d41716e5d3f4",
+    "tools/natural-reads/live-protocol.mjs": "bfe181dbde8d457842aaa6dd27e08bcdd55818a6f89f2444a19e7e92c9723884",
+    "tools/natural-reads/live.test.mjs": "6b2342ce45c7df86ede34f7c91e222e421086b8b039dab99d251592d843aac7c",
+    "tools/natural-reads/proof-child.mjs": "accef6d7f18b3ac1b31e1c94f219618110a7f25e4f30cbfa87c94f3d11c34cb2",
+    "tools/natural-reads/runner.mjs": "6dd3df0e450f6db9eb863e0b3920ab3ca527f3e29cddb8c4bc7758b5142f3a97",
+    "tools/natural-reads/sampling.mjs": "9ea7602fbf3aeacded21c8bd25821670e2fd81cdad4062cbfecd6abf8bb52873",
+    "tools/natural-reads/signals.mjs": "dfeb5ec3a011a67bfd6f10b67b5eca950a9d6732e18bb92a543a4acf9caa7fa9",
+    "tools/natural-reads/top-browser.mjs": "8509c73b0882874fe90dac78a0fff891b5127af9d332177787853d92b90319ca",
+    "tools/natural-reads/top-memory.mjs": "6dca864e99f4ae4756262058aa758255c363a19f1912ee3dc72b388fd9a413c9"
+  }
+}

@@ -1,12 +1,12 @@
 // Passive, bounded metadata only. Never inspect console args, exception descriptions or stacks.
 import {classifyNetworkFailure} from '../cdp-startup-diagnostic/network-failure.mjs';
-import {TARGET,TOTAL_REQUESTS} from './policy.mjs';
+import {TARGET,TOTAL_REQUESTS,responseMime} from './policy.mjs';
 const kinds=['MAIN_HTML','PUBLIC_HTML','HOME_METADATA','PUBLIC_ROUTE_METADATA','HOME_DIRECTORY','NUXT_PAYLOAD_JSON','NUXT_PAYLOAD_JS','NUXT_STATIC','STATIC','FONT','PUBLIC_STATIC','IMAGE_STATIC'];
 const labels=['DOCUMENT_BOUND','DOCUMENT_HTTP_200','DOCUMENT_HTTP_OTHER','FCP','CONSOLE_ERROR','UNCAUGHT_EXCEPTION','EXCEPTION_REVOKED','NETWORK_FAILED','CONTENT_BOUND','CONTENT_HEADERS','CONTENT_EOF','CONTENT_FAILED','SCOPE_LOST'];
 const content=k=>['HOME_METADATA','PUBLIC_ROUTE_METADATA','HOME_DIRECTORY'].includes(k);
 export class ReadSignals{
- constructor(g){this.g=g;this.owner=null;this.frame=null;this.loader=null;this.context=null;this.runtime=false;this.lost=false;this.closed=false;this.overflow=false;this.events=[];this.consoleErrors=0;this.uncaught=0;this.unscoped=0;this.late=0;this.content=new Map();this.starts=new Map();this.networkFailures=0;}
- mark(code,kind=null){if(this.closed){this.late=Math.min(120,this.late+1);return;}if(this.events.length>=32){this.overflow=true;return;}if(!labels.includes(code))return;this.events.push({order:this.events.length+1,code,resource:kinds.includes(kind)?kind:null});}
+ constructor(g){this.g=g;this.owner=null;this.frame=null;this.loader=null;this.context=null;this.runtime=false;this.lost=false;this.closed=false;this.overflow=false;this.events=[];this.consoleErrors=0;this.uncaught=0;this.unscoped=0;this.late=0;this.content=new Map();this.starts=new Map();this.firstFailure=null;this.onChange=null;this.networkFailures=0;}
+ mark(code,kind=null){if(this.closed){this.late=Math.min(120,this.late+1);return;}if(this.events.length>=32){this.overflow=true;return;}if(!labels.includes(code))return;this.events.push({order:this.events.length+1,code,resource:kinds.includes(kind)?kind:null});this.onChange?.();}
  runtimeReady(){if(this.g.stopping)return;this.owner=this.g.primary;this.frame=this.g.sessions.get(this.owner)?.frame;this.runtime=true;}
  bind(e,kind){if(this.closed)return;if(kind==='MAIN_HTML')this.mark('DOCUMENT_BOUND',kind);if(!content(kind))return;
   if(this.content.has(e.networkId)||this.content.size>=TOTAL_REQUESTS){this.overflow=true;return;}
@@ -25,6 +25,11 @@ export class ReadSignals{
   if(m.method==='Page.lifecycleEvent'&&p.name==='firstContentfulPaint'&&p.frameId===this.frame&&p.loaderId===this.loader)this.mark('FCP');
   if(m.method==='Network.requestWillBeSent'&&p.frameId===this.frame){if(this.starts.size>=TOTAL_REQUESTS&&!this.starts.has(p.requestId)){this.overflow=true;return;}this.starts.set(p.requestId,{session:m.sessionId,frame:p.frameId,loader:p.loaderId,url:p.request?.url});const r=this.content.get(p.requestId);if(r)this.matchStart(r,this.starts.get(p.requestId));}
   const prior=this.g.boundary.network.get(p.requestId),r=this.content.get(p.requestId);
+  if(!this.firstFailure&&prior){let category=null,status=null,network=[],public_headers='NOT_AVAILABLE',redirect_status=null;
+   if(m.method==='Network.responseReceived'){const v=p.response,h=Object.fromEntries(Object.entries(v?.headers||{}).map(([k,x])=>[k.toLowerCase(),x]));public_headers=h['www-authenticate']||h['proxy-authenticate']?'AUTH_CHALLENGE':/\bprivate\b/i.test(h['cache-control']||'')?'PRIVATE':'NO_AUTH_OR_PRIVATE_HEADERS_OBSERVED';status=Number.isInteger(v?.status)&&v.status>=100&&v.status<=599?v.status:null;category=!v||v.url!==prior.url?'RESPONSE_BINDING':v.fromServiceWorker?'SERVICE_WORKER':v.status!==200?'HTTP_STATUS':h['www-authenticate']||h['proxy-authenticate']||/\bprivate\b/i.test(h['cache-control']||'')?'PUBLIC_SCOPE':!responseMime(prior.kind,v.mimeType)?'MIME':null;}
+   if(m.method==='Network.loadingFailed'){category='NETWORK_FAILURE';network=classifyNetworkFailure(p).categories;}
+   if(status!==null)redirect_status=status>=300&&status<400;if(category){this.firstFailure={category,resource:prior.kind,status,network,public_headers,redirect_status};this.onChange?.();}
+  }
   if(m.method==='Network.responseReceived'&&prior?.kind==='MAIN_HTML')this.mark(p.response?.status===200?'DOCUMENT_HTTP_200':'DOCUMENT_HTTP_OTHER','MAIN_HTML');
   if(m.method==='Network.loadingFailed'&&prior){this.networkFailures=Math.min(120,this.networkFailures+1);this.mark('NETWORK_FAILED',prior.kind);}
   if(r&&m.method==='Network.responseReceived'){r.headers=true;r.status=Number.isInteger(p.response?.status)&&p.response.status>=100&&p.response.status<=599?p.response.status:null;if(!r.started||p.response?.url!==r.url)r.ambiguous=true;this.mark('CONTENT_HEADERS',r.kind);}
@@ -32,8 +37,8 @@ export class ReadSignals{
   if(r&&m.method==='Network.loadingFailed'){r.failed=true;r.failure=classifyNetworkFailure(p).categories;this.mark('CONTENT_FAILED',r.kind);}
   if(['Network.loadingFinished','Network.loadingFailed'].includes(m.method))this.starts.delete(p.requestId);
  }
- stop(){this.closed=true;}
+ stop(){this.closed=true;this.onChange?.();}
  snapshot(){const rows=[...this.content.values()];const known=this.runtime&&this.context!==null&&!!this.loader&&!this.lost&&!this.overflow;
-  return{coverage:known?'SCOPED_WINDOW_WITH_PRE_CONTEXT_GAP':'UNKNOWN_OR_NOT_ENABLED',pre_context_gap:true,closed:this.closed,overflow:this.overflow,console_error:!known?'UNKNOWN':this.consoleErrors?'OBSERVED':'NOT_OBSERVED_IN_SCOPED_WINDOW',uncaught_exception:!known?'UNKNOWN':this.uncaught?'OBSERVED':'NOT_OBSERVED_IN_SCOPED_WINDOW',console_error_count:this.consoleErrors,uncaught_count:this.uncaught,unscoped_error_notifications:this.unscoped,network_failure_count:this.networkFailures,after_stop_or_cleanup_notifications:this.late,events:this.events.map(e=>({...e})),content:rows.map(r=>({kind:r.kind,started:r.started,headers:r.headers,network_eof:r.eof,failed:r.failed,status:r.status,speculative_marker:r.speculative_marker,binding:r.ambiguous?'AMBIGUOUS':r.started?'EXACT_SESSION_FRAME_LOADER_ID':'UNKNOWN',failure:r.failure??[],js_body_read:'NOT_OBSERVED'})),nuxt_handled_errors:'SEE_SEPARATE_EXISTING_HOOK_OR_PAYLOAD_EVIDENCE',exception_semantics:'CDP_NOTIFICATION_NOT_FINAL_UNHANDLED_STATE',ordering:'RECEIVED_NOTIFICATION_ORDER_NOT_CAUSAL'};
+  return{first_response_failure:this.firstFailure?{...this.firstFailure,network:[...this.firstFailure.network]}:null,coverage:known?'SCOPED_WINDOW_WITH_PRE_CONTEXT_GAP':'UNKNOWN_OR_NOT_ENABLED',pre_context_gap:true,closed:this.closed,overflow:this.overflow,console_error:!known?'UNKNOWN':this.consoleErrors?'OBSERVED':'NOT_OBSERVED_IN_SCOPED_WINDOW',uncaught_exception:!known?'UNKNOWN':this.uncaught?'OBSERVED':'NOT_OBSERVED_IN_SCOPED_WINDOW',console_error_count:this.consoleErrors,uncaught_count:this.uncaught,unscoped_error_notifications:this.unscoped,network_failure_count:this.networkFailures,after_stop_or_cleanup_notifications:this.late,events:this.events.map(e=>({...e})),content:rows.map(r=>({kind:r.kind,started:r.started,headers:r.headers,network_eof:r.eof,failed:r.failed,status:r.status,speculative_marker:r.speculative_marker,binding:r.ambiguous?'AMBIGUOUS':r.started?'EXACT_SESSION_FRAME_LOADER_ID':'UNKNOWN',failure:r.failure??[],js_body_read:'NOT_OBSERVED'})),nuxt_handled_errors:'SEE_SEPARATE_EXISTING_HOOK_OR_PAYLOAD_EVIDENCE',exception_semantics:'CDP_NOTIFICATION_NOT_FINAL_UNHANDLED_STATE',ordering:'RECEIVED_NOTIFICATION_ORDER_NOT_CAUSAL'};
  }
 }
