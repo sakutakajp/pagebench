@@ -1,0 +1,35 @@
+{
+  "parent": "85f835b8d48f0d895ec4bf652da0d6c2a1b8204a",
+  "role": "FIXED_400_JA_ONCE_NO_SCORE",
+  "unit_counts": {
+    "baseline": 474,
+    "AB": 48,
+    "strict": 27,
+    "scope": 23,
+    "bound": 40,
+    "natural": 18,
+    "reads": 51,
+    "live": 31,
+    "fixture": 178,
+    "workflow": 8,
+    "stop": 45,
+    "scoped": 29,
+    "proof": 22,
+    "run400": 43
+  },
+  "files": {
+    ".github/workflows/staging-nuxt400-observe-once-20261122.yml": "5af6bbbab5a247cb9420c89f083b115012a0f787f877192769e7a809b415cb48",
+    "tools/natural-reads/SCOPED400-REVIEW.md": "61ec653d76c487d0286689ae2fbb06a00e41d6df8b046823c7cfaf207c78c808",
+    "tools/natural-reads/scoped400-admission.mjs": "9dc5e299ecb4dce2a11d96c52ebad444d5d7d623ae42dbee8c6ccce414b7d278",
+    "tools/natural-reads/scoped400-browser.mjs": "913c7e522c9c5ce73830ebccc509c80a5f31d46941e1315d219e0714d0e800ef",
+    "tools/natural-reads/scoped400-child.mjs": "846a58208ee49feda8bea2eead05d4cf9ab2981b417f819169eee582fb53e006",
+    "tools/natural-reads/scoped400-control.mjs": "6c8e163627320655fb5ed91d850ae87fc315b5c5429bbbbd75a7abbedfc6784f",
+    "tools/natural-reads/scoped400-entry.mjs": "fcb6e398c012f96764797eff3b01f26028125bff80bcae5c0628e96f35c0aa02",
+    "tools/natural-reads/scoped400-gateway.mjs": "e7bb04f11c75d3480190c31d81a93646d0568f397b6e5ae1dfeea0df0558d8a4",
+    "tools/natural-reads/scoped400-limit.mjs": "67b7c8611e7c8c8d7ef6c823ed58cdd319f48015c18f76c2e1f6e617eb1e09c0",
+    "tools/natural-reads/scoped400-meter.mjs": "5c66520ca13077ed44619f3aca0cd987946651da74185fb9473120a5945657c1",
+    "tools/natural-reads/scoped400-proof-control.mjs": "f51338ca40dd58658185750af3d2b1325f6b405a7054a30615503540f64ddfee",
+    "tools/natural-reads/scoped400-record.mjs": "f559e06b9cfa694774cf209495276421de5bf0e666176d0e3f98b317edaa0d93",
+    "tools/natural-reads/scoped400.test.mjs": "7dba6342783831d6af97110cda24a608b9be5c494880b11d46dfb7d2dfbd4fc4"
+  }
+}
