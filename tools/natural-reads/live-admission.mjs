@@ -1,5 +1,5 @@
 import{readFile,writeFile}from'node:fs/promises';import{execFileSync}from'node:child_process';import{createHash}from'node:crypto';import{browserFileHash}from'../ab-observe/config.mjs';
-export const LIVE_REF='refs/heads/diag/natural-ja-observe-once-20261122',LIVE_BASE='063282ef31e30d21803829e0b5f3169e11e00405',LIVE_SUBJECT='diagnostic: natural ja observation once (20261122-v1)';
+export const LIVE_REF='refs/heads/diag/fixture-stop-proof-once-20261122',LIVE_BASE='699688dbc2d2d3b36ab210e85a7d8256ac5a1289',LIVE_SUBJECT='diagnostic: fixture stop proof and ja once (20261122-w1)';
 export async function liveAdmission({consume=false}={}){
  const git=(...a)=>execFileSync('git',a,{encoding:'utf8',maxBuffer:1048576}).trim();if(process.version!=='v22.19.0'||process.env.GITHUB_REPOSITORY!=='sakutakajp/pagebench'||process.env.GITHUB_REF!==LIVE_REF||process.env.GITHUB_EVENT_NAME!=='push'||process.env.GITHUB_RUN_ATTEMPT!=='1'||process.env.GITHUB_SHA!==git('rev-parse','HEAD')||git('rev-parse','HEAD^')!==LIVE_BASE||git('rev-list','--count',LIVE_BASE+'..HEAD')!=='1'||git('show','-s','--format=%s')!==LIVE_SUBJECT)throw Error('FIXED_ADMISSION');
  const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));if(event.head_commit?.id!==process.env.GITHUB_SHA)throw Error('FIXED_EVENT');
