@@ -1,5 +1,5 @@
 {
-  "parent": "699688dbc2d2d3b36ab210e85a7d8256ac5a1289",
+  "parent": "18c6bcc07fb96dd342c89b544aaf52097266f46b",
   "role": "NATURAL_JA_ONCE_NO_SCORE",
   "unit_counts": {
     "baseline": 474,
@@ -10,18 +10,19 @@
     "natural": 18,
     "reads": 51,
     "live": 31,
-    "fixture": 140,
+    "fixture": 178,
     "workflow": 8
   },
   "files": {
-    ".github/workflows/staging-fixture-stop-proof-once-20261122.yml": "6370e110fe6fd59d5e824e198a917ab0695310fc48dfca92b499a37694e619b0",
-    "tools/natural-reads/FIXTURE-STOP-REVIEW.md": "e474e5bfa651cc7058745ffb6b8d6fbb08361fe744b8bb491ecfa405c1bfc0fd",
-    "tools/natural-reads/browser.mjs": "b6aee5ee408e39b09091da385ac90023eb4646c29ea8c3a61b63dd0001028c92",
-    "tools/natural-reads/fixture-stop.mjs": "7180404a436437cc7d7df973019239db22ba9a6e60e1c84777aa3f17fb63072d",
-    "tools/natural-reads/fixture-stop.test.mjs": "98ecc989d9f51633561f47358b10740858dda8519bee5923926208b53abe3efe",
-    "tools/natural-reads/fixture-workflow.test.mjs": "62a2a9466d3d007ea08a0be9c1929b0914db1937fa6b315d06792409f426629f",
-    "tools/natural-reads/live-admission.mjs": "c259b23fe719ebb0ea793fee9daf0d87e7a71442b6156ab35e36ee0acc0fa849",
-    "tools/natural-reads/top-browser.mjs": "4cf9f7b47cfc349268ec0fcf6b5f65abf063827fe94ddec6a9086ffa45a502f9",
-    "tools/natural-reads/top-memory.mjs": "b917006e5c5d3e31fd50d90547a276a2b24246d434318f7c47f6a0d9a5d52b4d"
+    ".github/workflows/staging-fixture-arm-proof-once-20261122.yml": "582ad82fdabcd9dee51765ef8fce5a0c99832b2e326dd3394b98a08aae4368ae",
+    "tools/natural-reads/ARMED-FIXTURE-REVIEW.md": "29512b216335a85d4dc68e7173a35b4b7813ce9128f37022b49484cc5dc768f8",
+    "tools/natural-reads/browser.mjs": "2660d453b8ab8851505ea6876fd6c29ec3dbe916707b7b98be213adb26974032",
+    "tools/natural-reads/fixture-stop.mjs": "b8264396f4894c9a0c4e95655b619f44e55e021530ba9d03d547e71654fc8832",
+    "tools/natural-reads/fixture-stop.test.mjs": "00c550fbb6b5b7817847f6b2fa74c016410f13ed0198cca9cefbd48c9ff6abc2",
+    "tools/natural-reads/fixture-workflow.test.mjs": "eafd89775f7f6a932cb8ba117b177b51a60143848c0c8e42e52a03f3968e8381",
+    "tools/natural-reads/live-admission.mjs": "8feef3fbd9b1b8b1db2b9f10c6f463fabf5a2b972a7c38340e6bea5a7797a948",
+    "tools/natural-reads/negative-arm.mjs": "9fd008cc6c4e047df193a707de968a6f6e6a1e44badd75e08b9ec77cf8c60dbf",
+    "tools/natural-reads/top-browser.mjs": "ab82d2587513b1d12df27458a1a9c1f589a685d49f9489e195dd2cf3b8b81f2b",
+    "tools/natural-reads/top-memory.mjs": "d1f1de4cf823d8a28ba69026cb03917cee6b9b266018c444686482f9d3c789eb"
   }
 }

@@ -1,0 +1,80 @@
+name: One-time armed negative fixture proof and guarded ja observation
+on:
+  push:
+    branches: [diag/fixture-arm-proof-once-20261122]
+    paths: [.github/workflows/staging-fixture-arm-proof-once-20261122.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-fixture-arm-proof-once-20261122
+  cancel-in-progress: false
+jobs:
+  closed:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/fixture-arm-proof-once-20261122' &&
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: armed negative fixture and ja once (20261122-x1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without install hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Existing native-brand unit contracts
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {readdir,writeFile} from 'node:fs/promises';
+          const groups={baseline:{files:(await readdir('tools/cdp-startup-diagnostic')).filter(x=>x.endsWith('.test.mjs')).sort().map(x=>'tools/cdp-startup-diagnostic/'+x),expected:474},AB:{files:['tools/ab-observe/test.mjs'],expected:48}};
+          const result={kind:'natural-live-unit-proof',status:'passed',sha:process.env.GITHUB_SHA,node24:process.version,groups:{}};
+          for(const [name,g]of Object.entries(groups)){const r=spawnSync(process.execPath,['--test',...g.files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));const ok=process.version==='v24.19.0'&&typeof Error.isError==='function'&&r.status===0&&c.tests===g.expected&&c.pass===g.expected&&c.fail===0&&c.skipped===0&&c.cancelled===0;result.groups[name]={status:ok?'passed':'failed',...c};if(!ok)result.status='failed';}
+          await writeFile('natural-live-unit-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(result.status!=='passed')process.exitCode=1;
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Strict ownership binding proxy and closed-runner contracts
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {readFile,writeFile} from 'node:fs/promises';
+          const groups={strict:{file:'strict.test.mjs',expected:27},scope:{file:'scope-fetch.test.mjs',expected:23},bound:{file:'bound-prefetch.test.mjs',expected:40},natural:{file:'natural-prefetch.test.mjs',expected:18},reads:{file:'../natural-reads/test.mjs',expected:51},live:{file:'../natural-reads/live.test.mjs',expected:31},fixture:{file:'../natural-reads/fixture-stop.test.mjs',expected:178},workflow:{file:'../natural-reads/fixture-workflow.test.mjs',expected:8}};
+          const result=JSON.parse(await readFile('natural-live-unit-proof.json','utf8'));result.node22=process.version;
+          for(const [name,g]of Object.entries(groups)){const r=spawnSync(process.execPath,['--unhandled-rejections=strict','--test','tools/nuxt-debug/'+g.file],{encoding:'utf8',timeout:60000,maxBuffer:1048576});const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));const ok=process.version==='v22.19.0'&&r.status===0&&c.tests===g.expected&&c.pass===g.expected&&c.fail===0&&c.skipped===0&&c.cancelled===0;result.groups[name]={status:ok?'passed':'failed',...c};if(!ok)result.status='failed';}
+          await writeFile('natural-live-unit-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(result.status!=='passed')process.exitCode=1;
+          JS
+      - name: All safely isolated native and top-runner real Chrome controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --unhandled-rejections=strict --input-type=module <<'JS'
+          import{runClosedBrowser}from'./tools/natural-reads/browser.mjs';import{topBrowserProof}from'./tools/natural-reads/top-browser.mjs';import{browserFileHash}from'./tools/ab-observe/config.mjs';import{TOP_CASES}from'./tools/natural-reads/top-memory.mjs';import{writeFile,readFile}from'node:fs/promises';
+          const stamp={workflow_sha:process.env.GITHUB_SHA,run_id:process.env.GITHUB_RUN_ID};let native,top;
+          try{const hash=await browserFileHash();native={...await runClosedBrowser(),...stamp,binary_sha256:hash};if(await browserFileHash()!==hash)throw Error();}catch{native={kind:'CLOSED_NATURAL_READS_NOT_LIVE',...stamp,status:'failed',continuation:'STOP_UNCERTAIN_SAFETY_OR_FAILURE',reason:'BROWSER_UNAVAILABLE_OR_CLOSED_FAILURE',real_site_navigations:0,score_saved:false};}
+          if(native.continuation==='SAFE_CLOSED_NEXT_SUITE')try{top={...await topBrowserProof(),...stamp};}catch{top={kind:'TOP_RUNNER_REAL_CHROME_CLOSED_PROOF',...stamp,status:'failed',reason:'CLOSED_FAILURE',real_site_navigations:0,score_saved:false};}
+          else top={kind:'TOP_RUNNER_REAL_CHROME_CLOSED_PROOF',...stamp,status:'failed',cases:TOP_CASES.map(mode=>({case:mode,status:'not_run',reason:'PREVIOUS_UNCERTAIN_SAFETY_OR_FAILURE'})),real_site_navigations:0,score_saved:false};
+          for(const[path,result]of[['natural-native-closed-proof.json',native],['natural-top-closed-proof.json',top]]){const text=JSON.stringify(result);await writeFile(path,text,{flag:'wx',mode:0o600});if(await readFile(path,'utf8')!==text)throw Error('FIXED_READBACK');console.log(text);}
+          if(native.status!=='passed'||top.status!=='passed')process.exitCode=1;
+          JS
+      - name: JIT admission then one fixed ja observation only
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node --unhandled-rejections=strict tools/natural-reads/live-entry.mjs --execute-once
+      - name: Fixed proof only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixture-arm-ja-observation-fixed-proof
+          retention-days: 1
+          if-no-files-found: ignore
+          path: |
+            natural-live-unit-proof.json
+            natural-native-closed-proof.json
+            natural-top-closed-proof.json
+            natural-ja-fixed.json
