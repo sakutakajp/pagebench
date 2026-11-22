@@ -1,11 +1,12 @@
 // Controlled CDP/page doubles only. Uses the real runArm and real request method, no request override.
 import vm from 'node:vm';import {runArm} from '../ab-observe/runner.mjs';import {writer,safeArm,awaitStart} from './protocol.mjs';import {setSink} from './sink.mjs';import {safeEvidence} from './evidence.mjs';
 import {mkdirSync} from 'node:fs';
-const mode=process.argv[2];const modes=['positive','policy_inflight','policy_late','continue_error','emergency_throws','cleanup_throws','dispose_throws','sink_throws','child_exit','invalid_ipc','slow_cleanup','after_cleanup_event','journal_disk_failure','file_only_exit','contradictory_record'];
+const mode=process.argv[2];const modes=['positive','policy_inflight','policy_late','continue_error','emergency_throws','cleanup_throws','dispose_throws','sink_throws','child_exit','invalid_ipc','slow_cleanup','after_cleanup_event','journal_disk_failure','file_only_exit','contradictory_record','scope_path','scope_shape','scope_value','scope_api','scope_other','scope_prefetch','scope_late'];
 if(!modes.includes(mode))process.exit(2);
 await awaitStart();
 if(mode==='journal_disk_failure')mkdirSync(process.env.PB_DEBUG_DIRECTORY+'/journal.tmp');
 const emit=writer(process.env.PB_DEBUG_DIRECTORY,mode==='file_only_exit'?null:process.send.bind(process));setSink(mode==='sink_throws'?v=>{emit(v);throw Error('FIXED_SINK');}:emit);
+const scopeURLs={scope_path:'https://staging.hirameki.dev/api/_content/query/invalid/name.json',scope_shape:'https://staging.hirameki.dev/api/_content/query/fixed.json?unexpected=NEVER_SAVE',scope_value:'https://staging.hirameki.dev/api/_content/query/fixed.json?_params='+encodeURIComponent(JSON.stringify({first:true,where:[{_path:'/NEVER_SAVE'}]})),scope_api:'https://staging.hirameki.dev/api/not-allowed',scope_other:'https://staging.hirameki.dev/unknown-NEVER_SAVE',scope_prefetch:'https://staging.hirameki.dev/api/not-allowed',scope_late:'https://staging.hirameki.dev/api/_content/query/fixed.json?_params=null'};
 const target='https://staging.hirameki.dev/ja/';let gateway,wire,frameURL='about:blank',navReject,cleanupCalls=0,physicalClosed=false;const timers=[];
 const send=m=>wire.onmessage({data:JSON.stringify(m)}),later=(fn,ms=0)=>timers.push(setTimeout(fn,ms));
 const request=(name,type='Image',url='https://staging.hirameki.dev/static')=>({requestId:name,networkId:name,frameId:'F',resourceType:type,request:{url,method:'GET',headers:{}}});
@@ -23,10 +24,10 @@ async function open(Gateway){
  const doc={body:{innerText:'Fixed synthetic content longer than twenty characters.'},querySelector(s){return ['main#home-content','main#home-content h1#home-title','main h1,main h2'].includes(s)?{}:null;},querySelectorAll(s){return s==='meta[name="viewport" i]'?[{}]:[];}};
  const context={document:doc,screen:{width:412,height:823},innerWidth:412,innerHeight:823,devicePixelRatio:1.75,navigator:{userAgent:'Android 11; moto g power (2022) Mobile'}};
  const page={evaluate:async fn=>vm.runInNewContext('('+fn.toString()+')()',context),goto(){return new Promise((resolve,reject)=>{navReject=reject;send({sessionId:'P',method:'Fetch.requestPaused',params:request('DOC','Document',target)});
-  later(()=>{resolve();if(mode==='invalid_ipc'){process.send({kind:'unexpected',message:'NEVER_SAVE'});return;}if(mode==='contradictory_record'){gateway.stopEvidence.fatal('AB_BOUNDARY_REJECTED');gateway.stopEvidence.first='CDP_LOST';gateway.stopEvidence.publish();return;}
+  later(()=>{if(!mode.startsWith('scope_'))resolve();if(mode==='invalid_ipc'){process.send({kind:'unexpected',message:'NEVER_SAVE'});return;}if(mode==='contradictory_record'){gateway.stopEvidence.fatal('AB_BOUNDARY_REJECTED');gateway.stopEvidence.first='CDP_LOST';gateway.stopEvidence.publish();return;}
    if(mode!=='positive'&&mode!=='cleanup_throws'&&mode!=='dispose_throws'&&mode!=='slow_cleanup'&&mode!=='after_cleanup_event'){
     gateway.active.add('COMPLETE');gateway.waiting.push(request('ALLOW'));send({sessionId:'P',method:'Network.loadingFinished',params:{requestId:'COMPLETE'}});
-    if(mode!=='continue_error')later(()=>send({sessionId:'P',method:'Fetch.requestPaused',params:request('DENY','Fetch','https://telemetry.invalid/blocked')}),1);
+    if(mode!=='continue_error')later(()=>{const e=request('DENY','Fetch',scopeURLs[mode]||'https://telemetry.invalid/blocked');if(mode==='scope_prefetch')e.request.headers={'Sec-Purpose':'prefetch'};send({sessionId:'P',method:'Fetch.requestPaused',params:e});if(mode==='scope_late')later(()=>send({sessionId:'P',method:'Fetch.requestPaused',params:request('LATE','Fetch',scopeURLs.scope_api)}),1);},1);
    }
   },5);
  });}};

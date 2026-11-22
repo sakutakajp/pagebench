@@ -7,7 +7,7 @@ import {validLineageBrowserProof} from '../cdp-startup-diagnostic/node-lineage-b
 import {validMainPaintProof} from '../cdp-startup-diagnostic/main-paint-browser-fixture.mjs';
 import {validDetachBrowserProof} from '../cdp-startup-diagnostic/detach-browser-fixture.mjs';
 import {validBrowserTraceProof} from '../cdp-startup-diagnostic/trace-read-browser-fixture.mjs';
-export const REQUIRED=['unit','capture','closed','memory','response','fonts','real_stages','trace_browser','detach_browser','main_paint_browser','node_lineage_browser','nuxt_errors','payload_cause','measurement_runtime','ab_unit','ab_closed','nuxt_strict'];
+export const REQUIRED=['unit','capture','closed','memory','response','fonts','real_stages','trace_browser','detach_browser','main_paint_browser','node_lineage_browser','nuxt_errors','payload_cause','measurement_runtime','ab_unit','ab_closed','nuxt_strict','nuxt_scope'];
 export function eventValid(e){return e.event==='push'&&e.ref===REF&&e.attempt==='1'&&e.parent===BASE&&e.subject===SUBJECT&&/^[a-f0-9]{40}$/.test(e.sha)&&e.sha===e.head&&e.sha===e.eventHead&&e.commitCount===1;}
 export function stepsValid(s){return REQUIRED.every(k=>s?.[k]?.outcome==='success')&&s.capture.outputs?.fixture_ready==='true';}
 export async function noOtherRuns(fetcher=fetch,runId=process.env.GITHUB_RUN_ID,sha=process.env.GITHUB_SHA){
@@ -23,6 +23,7 @@ export const CLOSED_CASES=['A_normal','B_normal','A_no_meta','B_no_meta','A_tran
 export function closedValid(p,sha,fingerprint,now=Date.now()){
  return p?.kind==='closed-ab-real-chrome-proof'&&p.status==='passed'&&p.sha===sha&&p.fingerprint===fingerprint&&/^Chrome\/\d+\.\d+\.\d+\.\d+$/.test(p.chrome)&&/^[a-f0-9]{64}$/.test(p.binary_sha256)&&Number.isFinite(p.finished_ms)&&now>=p.finished_ms&&now-p.finished_ms<120000&&p.upstream_connections===0&&p.live_navigations===0&&p.readback===true&&Array.isArray(p.cases)&&JSON.stringify(p.cases.map(c=>c.case))===JSON.stringify(CLOSED_CASES)&&p.cases.every((c,i)=>c.status==='passed'&&c.chrome===p.chrome&&c.cleanup==='complete'&&c.actual_config===true&&(i>=10||c.viewport_check==='EXPECTED_CLASSIFICATION'));
 }
+export function scopeProofValid(p,sha){return p?.kind==='nuxt-scope-fixed-proof'&&p.status==='passed'&&p.sha===sha&&p.node==='v22.19.0'&&p.strict_mode==='strict'&&p.tests===23&&p.pass===23&&p.fail===0&&p.skipped===0&&p.cancelled===0;}
 const load=async p=>JSON.parse(await readFile(p,'utf8'));
 const git=(...a)=>execFileSync('git',a,{encoding:'utf8',maxBuffer:1048576}).trim();
 export async function debugAdmission(){
@@ -33,6 +34,7 @@ export async function debugAdmission(){
  for(const [p,h] of Object.entries(manifest)){if(!/^[a-f0-9]{64}$/.test(h)||createHash('sha256').update(await readFile(p)).digest('hex')!==h)throw Error('SOURCE');}
  const unit=await load('offline-unit-proof.json'),extra=await load('ab-unit-proof.json');if(unit.status!=='passed'||unit.workflow_sha!==sha||unit.node!=='v24.19.0'||unit.tests!==474||unit.pass!==474||unit.fail!==0||unit.skipped!==0||unit.cancelled!==0||extra.status!=='passed'||extra.sha!==sha||extra.node!=='v24.19.0'||extra.pass!==extra.tests||extra.tests!==48||extra.fail!==0||extra.skipped!==0||extra.cancelled!==0)throw Error('UNIT');
  const strict=await load('nuxt-debug-strict-proof.json');if(strict.status!=='passed'||strict.sha!==sha||strict.node!=='v22.19.0'||strict.strict_mode!=='strict'||strict.tests!==27||strict.pass!==27||strict.fail!==0||strict.skipped!==0||strict.cancelled!==0)throw Error('STRICT_RECEIVER_PROOF');
+ if(!scopeProofValid(await load('nuxt-scope-fixed-proof.json'),sha))throw Error('SCOPE_CLASSIFICATION_PROOF');
  const f=await safetyFingerprint();const [fixture,memory,response,font,stage,ab]=await Promise.all(['fixture-lighthouse-status.json','staging-memory-proof.json','response-path-proof.json','font-observed-proof.json','real-chrome-stage-proof.json','ab-closed-proof.json'].map(load));
  if([fixture,memory,response].some(p=>p.status!=='passed'||p.run_sha!==sha||p.safety_fingerprint!==f||p.outbound_forwarding!==0)||[memory,response].some(p=>p.chrome!==fixture.chrome)||fixture.cleanup!=='complete'||fixture.json_readback!==true||fixture.ui_resumes!==0||memory.continued_requests!==0||memory.blocked_requests<3)throw Error('BASE_GATES');
  if(JSON.stringify(fixture.cases)!==JSON.stringify(['positive-render','POST-and-external-denied','popup-stopped','worker-stopped','iframe-stopped','loss-stopped','mutation-stopped','websocket-no-handshake']))throw Error('GUARD_CASES');

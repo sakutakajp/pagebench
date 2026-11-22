@@ -1,0 +1,244 @@
+name: One-time first Scope Fetch classification, no scoring
+on:
+  push:
+    branches:
+      - diag/nuxt500-scope-kind-once-20261122
+    paths:
+      - .github/workflows/nuxt500-scope-fetch-once-20261122.yml
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-staging-exclusive-diagnostic
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/nuxt500-scope-kind-once-20261122' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: first scope Fetch classification once (20261122-q1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Locked fixture-only dependencies
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Native-brand unit test runtime only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Synthetic and loopback-only tests
+        id: unit
+        run: |
+          node --check tools/cdp-startup-diagnostic/diagnostic.mjs
+          node --check tools/cdp-startup-diagnostic/cleanup.mjs
+          node --check tools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';
+          import {readdir,writeFile} from 'node:fs/promises';
+          if(process.version!=='v24.19.0'||typeof Error.isError!=='function'){console.log('{"kind":"offline-unit-proof","status":"failed","reason":"NATIVE_BRAND_RUNTIME_REQUIRED"}');process.exit(1);}
+          const files=(await readdir('tools/cdp-startup-diagnostic')).filter(f=>f.endsWith('.test.mjs')).sort().map(f=>'tools/cdp-startup-diagnostic/'+f);
+          const r=spawnSync(process.execPath,['--test',...files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});
+          const counts=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=r.status===0&&counts.tests===474&&counts.pass===474&&counts.fail===0&&counts.skipped===0&&counts.cancelled===0;
+          const result={kind:'offline-unit-proof',status:pass?'passed':'failed',workflow_sha:process.env.GITHUB_SHA,node:process.version,...counts};
+          await writeFile('offline-unit-proof.json',JSON.stringify(result),{mode:0o600});
+          console.log(JSON.stringify(result));
+          if(!pass)process.exitCode=1;
+          JS
+      - name: Offline AB contracts and trigger checks
+        id: ab_unit
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';
+          import {writeFile} from 'node:fs/promises';
+          const r=spawnSync(process.execPath,['--test','tools/ab-observe/test.mjs'],{encoding:'utf8',timeout:60000,maxBuffer:1048576});
+          const counts=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=process.version==='v24.19.0'&&r.status===0&&counts.tests===48&&counts.pass===counts.tests&&counts.fail===0&&counts.skipped===0&&counts.cancelled===0;
+          const result={kind:'ab-offline-proof',status:pass?'passed':'failed',sha:process.env.GITHUB_SHA,node:process.version,...counts};
+          await writeFile('ab-unit-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(!pass)process.exitCode=1;
+          JS
+      - name: Restore unchanged measurement runtime
+        id: measurement_runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Compare global page capture and response-scoped capture
+        id: capture
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/scoped-comparison.mjs
+          node --input-type=module <<'JS'
+          import {readFile,appendFile} from 'node:fs/promises';
+          const data=JSON.parse(await readFile('scoped-capture-comparison.json','utf8'));
+          const ready=data.summary.version_comparability==='SAME_VERSION'&&data.summary.safe_fixture_modes.includes('ROOT_PAGE');
+          await appendFile(process.env.GITHUB_OUTPUT,'fixture_ready='+ready+'\n');
+          JS
+      - name: Mandatory isolated real-Chrome guards then one local Lighthouse report
+        id: closed
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node tools/cdp-startup-diagnostic/fixture-runner.mjs > /tmp/pagebench-fixture-result.log
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const d=JSON.parse(await readFile('fixture-lighthouse-status.json','utf8'));
+          console.log(JSON.stringify({kind:d.kind,status:d.status,chrome:d.chrome,lighthouse:d.lighthouse,cases:d.cases,cleanup:d.cleanup,json_readback:d.json_readback}));
+          JS
+      - name: Live policy in real Chrome with memory responses and zero forwarding
+        id: memory
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/staging-memory.mjs
+      - name: Actual request and response path on closed loopback fixture
+        id: response
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/response-fixture.mjs
+      - name: Passive Font response monitor closed proof
+        id: fonts
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/font-observe-fixture.mjs
+      - name: Real Chrome fixed stage evidence on closed fixture
+        id: real_stages
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: |
+          node --input-type=module <<'JS'
+          import{readFile,writeFile}from'node:fs/promises';
+          import{createRequire}from'node:module';import{pathToFileURL}from'node:url';
+          import{openGuarded}from'./tools/cdp-startup-diagnostic/fixture-runner.mjs';
+          import{ObservedFontFixture,fontLighthouseReport}from'./tools/cdp-startup-diagnostic/font-observe-fixture.mjs';
+          import{fontProxy}from'./tools/cdp-startup-diagnostic/font-fixture.mjs';
+          import{FIXTURE_URL}from'./tools/cdp-startup-diagnostic/fixture-gateway.mjs';
+          import{SETTINGS}from'./tools/lighthouse-once/guard.mjs';
+          import{sealMeasurement,verifyMeasurementSeal}from'./tools/cdp-startup-diagnostic/measurement-cutoff.mjs';
+          import{safetyFingerprint}from'./tools/cdp-startup-diagnostic/proof.mjs';
+          const require=createRequire(new URL('./tools/lighthouse-once/package.json',import.meta.url));
+          let ctx,phase='START';
+          try{
+           ctx=await openGuarded(ObservedFontFixture,()=>fontProxy('font_ok'));phase='LIGHTHOUSE';
+           const{default:lighthouse}=await import(pathToFileURL(require.resolve('lighthouse')).href);
+           let timer;let run;try{run=await Promise.race([lighthouse(FIXTURE_URL,{logLevel:'silent'},{extends:'lighthouse:default',settings:SETTINGS},ctx.page),new Promise((_,reject)=>timer=setTimeout(()=>{ctx.gateway.fail('FONT_FIXTURE_DEADLINE');reject(Error());},90000))]);}finally{clearTimeout(timer);}
+           const report=fontLighthouseReport(run.lhr,ctx);phase='VISIBLE';
+           const visible=await ctx.page.evaluate(()=>({body_characters:document.body?.innerText.trim().length||0,headings:document.querySelectorAll('h1,h2').length,font_loaded:window.fontStatus==='loaded'}));
+           if(!visible.font_loaded||visible.body_characters<1||visible.headings<1)throw Error();
+           phase='SEAL';const seal=await sealMeasurement(ctx,1);phase='CLEANUP';const cleanup=await ctx.cleanup();verifyMeasurementSeal(ctx,seal);
+           phase='STAGES';const stages=ctx.gateway.stageJournal.snapshot();
+           if(cleanup.status!=='complete'||ctx.gateway.stats.fatal||stages.complete!==true||stages.limitation!==null||stages.cause!=='NOT_ATTRIBUTED'||stages.observation!=='OBSERVED'||stages.phase!=='CLEANUP'||stages.cleanup_guard_stop||stages.cleanup_callbacks_saturated||stages.limits.events!==64||stages.limits.pending!==64||stages.limits.count!==255||Object.values(stages.outstanding).some(n=>n!==0)||stages.counts.TRACE_START_SENT!==1||stages.counts.TRACE_START_COMPLETE!==1||stages.counts.TRACE_END_SENT!==1||stages.counts.TRACE_END_COMPLETE!==1||stages.counts.STREAM_READY!==1||!(stages.counts.TRACE_READ_SENT>=1)||stages.counts.TRACE_READ_COMPLETE!==stages.counts.TRACE_READ_SENT||stages.counts.SCRIPT_SOURCE_SENT!==stages.counts.SCRIPT_SOURCE_COMPLETE)throw Error();
+           const result={kind:'real-chrome-stage-proof',status:'passed',workflow_sha:process.env.GITHUB_SHA,fingerprint:await safetyFingerprint(),chrome:ctx.chrome,lighthouse:report.lighthouse,fonts_expected:seal.fonts.expected,fonts_verified:seal.fonts.verified,stages,cleanup:'complete',outbound_forwarding:0,live_pages_attempted:0};
+           const bytes=JSON.stringify(result);await writeFile('real-chrome-stage-proof.json',bytes,{mode:0o600});if(await readFile('real-chrome-stage-proof.json','utf8')!==bytes)throw Error();
+           console.log(bytes);ctx=null;
+          }catch{
+           const cleanup=await ctx?.cleanup().catch(()=>({status:'failed'}));
+           const result={kind:'real-chrome-stage-proof',status:'failed',phase,cleanup:cleanup?.status||'not-started',reason:'REAL_STAGE_PROOF_FAILED',outbound_forwarding:0,live_pages_attempted:0};
+           await writeFile('real-chrome-stage-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));process.exitCode=1;
+          }
+          JS
+      - name: Real Chrome large Unicode trace, strict report readback and abort gate
+        id: trace_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/trace-read-browser-fixture.mjs
+      - name: Same-navigation detach observation on closed real Chrome
+        id: detach_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/detach-browser-fixture.mjs
+      - name: Main paint observation in closed real Chrome
+        id: main_paint_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/main-paint-browser-fixture.mjs
+      - name: Node lineage same-document proof in closed real Chrome
+        id: node_lineage_browser
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/node-lineage-browser-fixture.mjs
+      - name: Closed real Chrome Nuxt error five controls and fixed JSON readback
+        id: nuxt_errors
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/nuxt-error-browser-fixture.mjs
+      - name: Mandatory native payload cause, zero traps and public JSON readback
+        id: payload_cause
+        if: steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/cdp-startup-diagnostic/payload-cause-browser-fixture.mjs
+      - name: Mandatory closed real Chrome AB controls, actual throttling, and no forwarding
+        id: ab_closed
+        if: success() && steps.capture.outputs.fixture_ready == 'true'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node tools/ab-observe/closed.mjs
+      - name: Strict Node22 original-wrapper recovery and metadata proof
+        id: nuxt_strict
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {writeFile} from 'node:fs/promises';
+          const r=spawnSync(process.execPath,['--unhandled-rejections=strict','--test','tools/nuxt-debug/strict.test.mjs'],{encoding:'utf8',timeout:60000,maxBuffer:1048576});
+          const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=process.version==='v22.19.0'&&r.status===0&&c.tests===27&&c.pass===27&&c.fail===0&&c.skipped===0&&c.cancelled===0;
+          const result={kind:'nuxt-debug-strict-proof',status:pass?'passed':'failed',sha:process.env.GITHUB_SHA,node:process.version,strict_mode:'strict',...c};await writeFile('nuxt-debug-strict-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(!pass)process.exitCode=1;
+          JS
+      - name: Strict Node22 Scope Fetch classification and original-wrapper readback
+        id: nuxt_scope
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {writeFile} from 'node:fs/promises';
+          const r=spawnSync(process.execPath,['--unhandled-rejections=strict','--test','tools/nuxt-debug/scope-fetch.test.mjs'],{encoding:'utf8',timeout:60000,maxBuffer:1048576});
+          const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));
+          const pass=process.version==='v22.19.0'&&r.status===0&&c.tests===23&&c.pass===23&&c.fail===0&&c.skipped===0&&c.cancelled===0;
+          const result={kind:'nuxt-scope-fixed-proof',status:pass?'passed':'failed',sha:process.env.GITHUB_SHA,node:process.version,strict_mode:'strict',...c};await writeFile('nuxt-scope-fixed-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(!pass)process.exitCode=1;
+          JS
+      - name: Exact event and same-SHA recovery admission
+        id: debug_admission
+        if: success()
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: node tools/nuxt-debug/admission.mjs
+      - name: One A-side ja diagnostic only, parent-owned evidence
+        if: >-
+          success() && steps.debug_admission.outputs.ready == 'true' &&
+          github.event_name == 'push' && github.run_attempt == 1 &&
+          github.ref == 'refs/heads/diag/nuxt500-scope-kind-once-20261122' &&
+          github.event.head_commit.message == 'diagnostic: first scope Fetch classification once (20261122-q1)'
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: node tools/nuxt-debug/parent.mjs --execute-once
+      - name: Fixed evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt500-first-scope-fetch-one-attempt
+          retention-days: 1
+          if-no-files-found: ignore
+          path: |
+            offline-unit-proof.json
+            ab-unit-proof.json
+            ab-closed-proof.json
+            nuxt-debug-strict-proof.json
+            nuxt-scope-fixed-proof.json
+            nuxt-debug-admission.json
+            nuxt500-debug-fixed.json
