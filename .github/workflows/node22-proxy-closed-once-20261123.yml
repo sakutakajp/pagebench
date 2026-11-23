@@ -1,0 +1,74 @@
+name: Closed Node22 reject-only proxy proof once
+on:
+  push:
+    branches: [diag/node22-proxy-closed-once-20261123]
+    paths: [.github/workflows/node22-proxy-closed-once-20261123.yml]
+permissions:
+  contents: read
+concurrency:
+  group: node22-proxy-closed-once-20261123
+  cancel-in-progress: false
+jobs:
+  closed-node-only:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/node22-proxy-closed-once-20261123' &&
+      github.run_attempt == 1 &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: Node22 reject-only proxy proof once (20261123-p2)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          check-latest: false
+      - name: Exact source and closed TCP cleanup proof only
+        run: |
+          node --unhandled-rejections=strict --input-type=module <<'JS'
+          import{spawnSync,execFileSync}from'node:child_process';import{readFileSync,writeFileSync}from'node:fs';import{createHash}from'node:crypto';
+          const sources={"tools/nuxt-debug/natural-prefetch-proxy.mjs":"28fa2734da84b6f62aba2407b0bab0807f82fa77deab4966aafb65320f4bef3a","tools/proxy-fault/baseline-source.mjs":"536bb16bcf0a4b3ec4500645797392f72db1fcfe60f35ebb79ad0b8634f56a33","tools/proxy-fault/probe-child.mjs":"38224006819a42f82f526154c1e95b300bd958c16ac372d303acd7696d568850","tools/proxy-fault/proxy-fault.test.mjs":"e4b26be9f38121d4798915ce857505ff689aa402425e63c0b9f2edb35186a32b"};
+          const result={kind:'NODE22_REJECT_ONLY_PROXY_CLOSED_COMPONENT_PROOF',status:'failed',phase:'RUNTIME',node:process.version,expected_tests:25,tests:null,pass:null,fail:null,skipped:null,cancelled:null,baseline_socket_reset:'UNKNOWN',repair_socket_reset:'UNKNOWN',physical_cleanup:'UNKNOWN',failure_invalidates_gate:'UNKNOWN',real_site_navigations:0,chrome_launched:false,upstream_connections:null,score_saved:false,report_saved:false};
+          try{
+            if(process.version!=='v22.19.0'||!process.execArgv.includes('--unhandled-rejections=strict'))throw Error('FIXED_RUNTIME');
+            result.phase='SOURCE';
+            const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+            if(git('rev-parse','HEAD')!==process.env.GITHUB_SHA||git('rev-list','--parents','-n','1','HEAD')!==process.env.GITHUB_SHA+' 945c23c06a1358b61cc80f65083881dd477b1432'||git('show','-s','--format=%s','HEAD')!=='diagnostic: Node22 reject-only proxy proof once (20261123-p2)'||git('status','--porcelain'))throw Error('FIXED_ANCESTRY');
+            const expected=[...Object.keys(sources),'.github/workflows/node22-proxy-closed-once-20261123.yml'].sort();
+            if(JSON.stringify(git('diff-tree','--no-commit-id','--name-only','-r','HEAD').split('\n').sort())!==JSON.stringify(expected))throw Error('FIXED_DIFF');
+            for(const[path,hash]of Object.entries(sources))if(createHash('sha256').update(readFileSync(path)).digest('hex')!==hash)throw Error('FIXED_HASH');
+            result.phase='CLOSED_COMPONENT_TESTS';
+            const p=spawnSync(process.execPath,['--unhandled-rejections=strict','--test','--test-reporter=tap','tools/proxy-fault/proxy-fault.test.mjs','tools/cdp-startup-diagnostic/cleanup.test.mjs'],{encoding:'utf8',timeout:45000,maxBuffer:1048576});
+            // Neither child test stdout nor stderr is forwarded or saved.
+            const count={};for(const m of (p.stdout||'').matchAll(/^# (tests|pass|fail|skipped|cancelled) (\d+)$/gm)){if(Object.hasOwn(count,m[1]))throw Error('FIXED_DUPLICATE_SUMMARY');count[m[1]]=Number(m[2]);}
+            for(const k of ['tests','pass','fail','skipped','cancelled'])result[k]=Number.isSafeInteger(count[k])&&count[k]>=0&&count[k]<=25?count[k]:null;
+            if(p.status!==0||p.signal||p.error||p.stderr||result.tests!==25||result.pass!==25||result.fail!==0||result.skipped!==0||result.cancelled!==0)throw Error('FIXED_TESTS');
+            result.phase='FIXED_READBACK';
+            const bytes=readFileSync('tools/proxy-fault/results.json');if(bytes.length>65536)throw Error('FIXED_BUDGET');const proof=JSON.parse(bytes);
+            if(proof.kind!=='CLOSED_NODE_COMPONENT_NOT_CHROME'||proof.node!=='v22.19.0'||proof.strict!==true||!Array.isArray(proof.rows)||proof.rows.length!==13)throw Error('FIXED_COMPONENT_PROOF');
+            const select=(version,scenario)=>{const matches=proof.rows.filter(r=>r.version===version&&r.scenario===scenario);if(matches.length!==1)throw Error('FIXED_CASE');return matches[0];};
+            const a=select('baseline','connect_rst'),b=select('hardened','connect_rst');
+            if(a.exit!==1||a.stderr_observed!==true||a.stdout_observed!==false||a.evidence.node!=='v22.19.0'||a.evidence.first_socket_error?.resource!=='ACCEPTED_DOWNSTREAM_PROXY_SOCKET'||a.evidence.first_socket_error?.code!=='ECONNRESET'||a.evidence.first_socket_error?.error_listeners!==0||a.evidence.uncaught?.origin!=='UNCAUGHT_EXCEPTION'||a.evidence.finished!==false)throw Error('FIXED_BASELINE');
+            result.baseline_socket_reset='EXPECTED_UNHANDLED_SOCKET_EXIT';
+            const q=b.evidence.proxy;
+            if(b.exit!==0||b.stderr_observed!==false||b.stdout_observed!==false||b.evidence.node!=='v22.19.0'||b.evidence.uncaught!==null||b.evidence.close_result!=='FIXED_PROXY_FAULT'||q?.closed!==true||q.open_sockets!==0||q.upstream_sockets_opened!==0||q.forwarding_capability!=='ABSENT'||q.first_socket_fault?.code!=='ECONNRESET'||q.first_socket_fault?.resource!=='ACCEPTED_DOWNSTREAM_PROXY_SOCKET')throw Error('FIXED_REPAIR');
+            result.repair_socket_reset='RECORDED_FAULT_PROOF_REJECTED';
+            const rows=proof.rows.filter(r=>r.scenario==='ACTUAL_CLEANUP_AND_NATIVE_VERDICT');const c=rows[0];
+            if(rows.length!==1||c.cleanup?.status!=='failed'||!c.cleanup.stages?.some(s=>s.code==='PROXY_CLOSE_FAILED')||!c.cleanup.stages?.some(s=>s.code==='PROFILE_DELETED')||c.arm!=='failed'||c.verdict?.status!=='failed'||c.verdict?.continuation!=='STOP_UNCERTAIN_SAFETY_OR_FAILURE'||c.proxy?.closed!==true||c.proxy.open_sockets!==0)throw Error('FIXED_CLEANUP');
+            result.physical_cleanup='CONFIRMED_COMPONENT_AND_PROFILE';result.failure_invalidates_gate='CONFIRMED';result.upstream_connections=0;result.status='passed';result.phase='COMPLETE';
+          }catch{}
+          const text=JSON.stringify(result);writeFileSync('node22-proxy-closed-proof.json',text,{flag:'wx',mode:0o600});if(readFileSync('node22-proxy-closed-proof.json','utf8')!==text)throw Error('FIXED_OUTPUT_READBACK');console.log(text);if(result.status!=='passed')process.exitCode=1;
+          JS
+      - name: Fixed component proof only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: node22-proxy-closed-fixed-proof
+          retention-days: 1
+          if-no-files-found: ignore
+          path: node22-proxy-closed-proof.json
