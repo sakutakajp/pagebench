@@ -1,0 +1,290 @@
+[
+  {
+    "name": "baseline",
+    "files": [
+      "tools/cdp-startup-diagnostic/authless-profile.test.mjs",
+      "tools/cdp-startup-diagnostic/cdp-input-diagnostic.test.mjs",
+      "tools/cdp-startup-diagnostic/cdp-stage-journal.test.mjs",
+      "tools/cdp-startup-diagnostic/cleanup.test.mjs",
+      "tools/cdp-startup-diagnostic/commands.test.mjs",
+      "tools/cdp-startup-diagnostic/detach-browser-fixture.test.mjs",
+      "tools/cdp-startup-diagnostic/detach-evidence.test.mjs",
+      "tools/cdp-startup-diagnostic/diagnostic.test.mjs",
+      "tools/cdp-startup-diagnostic/fixture-gateway.test.mjs",
+      "tools/cdp-startup-diagnostic/fixture-runner.test.mjs",
+      "tools/cdp-startup-diagnostic/font-compare.test.mjs",
+      "tools/cdp-startup-diagnostic/font-monitor.test.mjs",
+      "tools/cdp-startup-diagnostic/main-paint-evidence.test.mjs",
+      "tools/cdp-startup-diagnostic/main-paint-public.test.mjs",
+      "tools/cdp-startup-diagnostic/measurement-cutoff.test.mjs",
+      "tools/cdp-startup-diagnostic/network-failure.test.mjs",
+      "tools/cdp-startup-diagnostic/node-identity-evidence.test.mjs",
+      "tools/cdp-startup-diagnostic/node-lineage-fixture-recovery.test.mjs",
+      "tools/cdp-startup-diagnostic/node-lineage-public.test.mjs",
+      "tools/cdp-startup-diagnostic/node-lineage.test.mjs",
+      "tools/cdp-startup-diagnostic/nuxt-error-evidence.test.mjs",
+      "tools/cdp-startup-diagnostic/nuxt-error-summary.test.mjs",
+      "tools/cdp-startup-diagnostic/nuxt-payload-cause.test.mjs",
+      "tools/cdp-startup-diagnostic/observation-summary.test.mjs",
+      "tools/cdp-startup-diagnostic/operation-comparison.test.mjs",
+      "tools/cdp-startup-diagnostic/payload-cause-browser-fixture.test.mjs",
+      "tools/cdp-startup-diagnostic/public-stage-summary.test.mjs",
+      "tools/cdp-startup-diagnostic/response-bound.test.mjs",
+      "tools/cdp-startup-diagnostic/response-trace.test.mjs",
+      "tools/cdp-startup-diagnostic/scoped-capture.test.mjs",
+      "tools/cdp-startup-diagnostic/staging-policy.test.mjs",
+      "tools/cdp-startup-diagnostic/ten-trials.test.mjs",
+      "tools/cdp-startup-diagnostic/topology-hypotheses.test.mjs",
+      "tools/cdp-startup-diagnostic/trace-read-browser-fixture.test.mjs",
+      "tools/cdp-startup-diagnostic/trace-read-budget.test.mjs",
+      "tools/cdp-startup-diagnostic/unpaused-ui.test.mjs",
+      "tools/cdp-startup-diagnostic/visible-evidence.test.mjs"
+    ],
+    "expected": 474,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "AB",
+    "files": [
+      "tools/ab-observe/test.mjs"
+    ],
+    "expected": 48,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "origin",
+    "files": [
+      "tools/origin-capture/test.mjs"
+    ],
+    "expected": 45,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "originIntegration",
+    "files": [
+      "tools/origin-capture/once.test.mjs"
+    ],
+    "expected": 49,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "recoveryHistory",
+    "files": [
+      "tools/origin-recovery/history.test.mjs"
+    ],
+    "expected": 22,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "recoveryWorkflow",
+    "files": [
+      "tools/origin-recovery/contracts.test.mjs"
+    ],
+    "expected": 25,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "historicalHashPairs",
+    "files": [
+      "tools/origin-recovery/history-hash.test.mjs"
+    ],
+    "expected": 16,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "retryContracts",
+    "files": [
+      "tools/origin-recovery/retry-contracts.test.mjs"
+    ],
+    "expected": 32,
+    "node": "24.19.0",
+    "strict": false
+  },
+  {
+    "name": "fixedChrome24",
+    "node": "24.19.0",
+    "strict": true,
+    "files": [
+      "tools/rejected-paths-chrome/test.mjs"
+    ],
+    "expected": 24
+  },
+  {
+    "name": "strict",
+    "files": [
+      "tools/nuxt-debug/strict.test.mjs"
+    ],
+    "expected": 27,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "scope",
+    "files": [
+      "tools/nuxt-debug/scope-fetch.test.mjs"
+    ],
+    "expected": 23,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "bound",
+    "files": [
+      "tools/nuxt-debug/bound-prefetch.test.mjs"
+    ],
+    "expected": 40,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "natural",
+    "files": [
+      "tools/nuxt-debug/natural-prefetch.test.mjs"
+    ],
+    "expected": 18,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "reads",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/test.mjs"
+    ],
+    "expected": 51,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "live",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/live.test.mjs"
+    ],
+    "expected": 31,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "fixture",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/fixture-stop.test.mjs"
+    ],
+    "expected": 178,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "workflow",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/fixture-workflow.test.mjs"
+    ],
+    "expected": 8,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "stop",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/stop-record.test.mjs"
+    ],
+    "expected": 45,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "scoped",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/scoped240.test.mjs"
+    ],
+    "expected": 29,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "proof",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/scoped240-proof-contract.test.mjs"
+    ],
+    "expected": 22,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "run400",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/scoped400.test.mjs"
+    ],
+    "expected": 43,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "startup",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/startup.test.mjs"
+    ],
+    "expected": 23,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "integration",
+    "files": [
+      "tools/nuxt-debug/../natural-reads/startup400.test.mjs"
+    ],
+    "expected": 29,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "proxyFault",
+    "files": [
+      "tools/nuxt-debug/../proxy-fault/proxy-fault.test.mjs"
+    ],
+    "expected": 18,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "proxyCleanup",
+    "files": [
+      "tools/nuxt-debug/../cdp-startup-diagnostic/cleanup.test.mjs"
+    ],
+    "expected": 7,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "parentMonitor",
+    "files": [
+      "tools/nuxt-debug/../origin-recovery/parent.test.mjs"
+    ],
+    "expected": 35,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "retryStrict",
+    "files": [
+      "tools/nuxt-debug/../origin-recovery/retry-strict.test.mjs"
+    ],
+    "expected": 12,
+    "node": "22.19.0",
+    "strict": true
+  },
+  {
+    "name": "fixedChrome22",
+    "node": "22.19.0",
+    "strict": true,
+    "files": [
+      "tools/rejected-paths-chrome/test.mjs"
+    ],
+    "expected": 24
+  }
+]

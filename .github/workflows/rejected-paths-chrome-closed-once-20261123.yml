@@ -1,0 +1,56 @@
+name: One-time fixed rejected paths real Chrome closed proof
+on:
+  push:
+    branches: [diag/rejected-paths-chrome-closed-once-20261123]
+    paths: [.github/workflows/rejected-paths-chrome-closed-once-20261123.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-rejected-paths-chrome-closed-once-20261123
+  cancel-in-progress: false
+jobs:
+  closed:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/rejected-paths-chrome-closed-once-20261123' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: fixed rejected paths Chrome proof once (20261123-q1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 18
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked existing dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Native-brand and fixed-memory unit contracts
+        run: node tools/rejected-paths-chrome/unit.mjs node24
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Strict ownership and fixed-memory unit contracts
+        run: node tools/rejected-paths-chrome/unit.mjs node22
+      - name: Exact event source units and single-run admission
+        run: node tools/rejected-paths-chrome/admission.mjs >/dev/null 2>&1
+      - name: Standard Chrome fixed loopback controls only
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node --unhandled-rejections=strict tools/rejected-paths-chrome/browser.mjs >/dev/null 2>&1
+      - name: Fixed counters only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rejected-paths-chrome-closed-fixed-20261123-q1
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-chrome-proof.json
+          if-no-files-found: error
+          retention-days: 1
