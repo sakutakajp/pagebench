@@ -1,0 +1,17 @@
+{
+  "parent": "c5f26d1814ab47655a1dce75225294c82f34abef",
+  "role": "FIRST_ORIGIN_IMPLEMENTATION_CONDITIONAL_REVIEW",
+  "files": {
+    "tools/origin-capture/REVIEW.md": "ce423109223a54015aa25b7a0bd81d65623c0e6e168faba48e0e1291bf5d1d1a",
+    "tools/origin-capture/closed-browser.mjs": "f46d9f9700c1f3e8499302c55188f7b0c02a944c377a06da745d25b0e937d24e",
+    "tools/origin-capture/crypto.mjs": "24c94d47b3c401047e2fea5479ed29b97e89cb074ab117e39d8c87c0143f8a4e",
+    "tools/origin-capture/observer.mjs": "37ecc112e987ad830622b2f49b432a2f27ff357c28d539527ba8d4c20bf73528",
+    "tools/origin-capture/once-output.mjs": "cde4694022e91e906a84237ea6449e9171d0486a475243c01bb3bff644e298f1",
+    "tools/origin-capture/once-proof.mjs": "bc89b3f2a20ae92e3bce852b1f654d939e6d70b1eadb2aaabd4ef0bc036f9b9f",
+    "tools/origin-capture/once.test.mjs": "a78ad2859841ce79d07a9775dce1181007bb4e7faf172c1d099cd6593334711a",
+    "tools/origin-capture/public-key-info.json": "52a63ae4ea108e2ef6fafcdddfe9f511d2707570ed35aedca7974e84319bf4ca",
+    "tools/origin-capture/public-key.pem": "307da5fe0e07b9b4766dbe8bc044f215c806e66a030c3837fed5186b1d40bc8f",
+    "tools/origin-capture/store.mjs": "00ba5842190cd61b50817fc38af83cb8be8f45c0fc9d35202f07fdf5be65a559",
+    "tools/origin-capture/test.mjs": "13dc8699ff165b9d7dd80d08e7a6d6260a42508990c37e2c0273f26d36e802b8"
+  }
+}

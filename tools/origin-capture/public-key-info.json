@@ -1,0 +1,5 @@
+{
+  "algorithm": "RSA3072_OAEP_SHA256_AES256_GCM",
+  "key_id": "a349d85094aa8eeca13b0608b2d2d0cbb436e38aedd983459b496e6c2aac2d88",
+  "private_key": "LOCAL_ONLY_NOT_IN_REPOSITORY"
+}
