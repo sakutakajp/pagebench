@@ -1,0 +1,191 @@
+{
+  "base": "9ccf0109648b670abc8563fd49b7d2f3be86b5da",
+  "copies": [
+    {
+      "old": "tools/origin-capture/crypto.mjs",
+      "new": "tools/origin-capture/retry-crypto.mjs",
+      "pairs": [
+        [
+          "refs/heads/diag/first-origin-recovery-once-20261123",
+          "refs/heads/diag/first-origin-reviewed-once-20261123"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-capture/store.mjs",
+      "new": "tools/origin-capture/retry-store.mjs",
+      "pairs": [
+        [
+          "'./crypto.mjs'",
+          "'./retry-crypto.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-capture/observer.mjs",
+      "new": "tools/origin-capture/retry-observer.mjs",
+      "pairs": [
+        [
+          "'./crypto.mjs'",
+          "'./retry-crypto.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-capture/once-output.mjs",
+      "new": "tools/origin-capture/retry-output.mjs",
+      "pairs": [
+        [
+          "'./observer.mjs'",
+          "'./retry-observer.mjs'"
+        ],
+        [
+          "'./crypto.mjs'",
+          "'./retry-crypto.mjs'"
+        ],
+        [
+          "'./store.mjs'",
+          "'./retry-store.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-capture/closed-browser.mjs",
+      "new": "tools/origin-capture/retry-closed-browser.mjs",
+      "pairs": [
+        [
+          "'./once-output.mjs'",
+          "'./retry-output.mjs'"
+        ],
+        [
+          "'./observer.mjs'",
+          "'./retry-observer.mjs'"
+        ],
+        [
+          "'./crypto.mjs'",
+          "'./retry-crypto.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-recovery/parent-evidence.mjs",
+      "new": "tools/origin-recovery/retry-parent-evidence.mjs",
+      "pairs": [
+        [
+          "refs/heads/diag/first-origin-recovery-once-20261123",
+          "refs/heads/diag/first-origin-reviewed-once-20261123"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-recovery/stage.mjs",
+      "new": "tools/origin-recovery/retry-stage.mjs",
+      "pairs": [
+        [
+          "'./parent-evidence.mjs'",
+          "'./retry-parent-evidence.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-recovery/preload.mjs",
+      "new": "tools/origin-recovery/retry-preload.mjs",
+      "pairs": [
+        [
+          "'./parent-evidence.mjs'",
+          "'./retry-parent-evidence.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/origin-recovery/project.mjs",
+      "new": "tools/origin-recovery/retry-project.mjs",
+      "pairs": [
+        [
+          "'./parent-evidence.mjs'",
+          "'./retry-parent-evidence.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/natural-reads/recovery400-admission.mjs",
+      "new": "tools/natural-reads/retry400-admission.mjs",
+      "pairs": [
+        [
+          "'../origin-recovery/parent-evidence.mjs'",
+          "'../origin-recovery/retry-parent-evidence.mjs'"
+        ],
+        [
+          "refs/heads/diag/first-origin-recovery-once-20261123",
+          "refs/heads/diag/first-origin-reviewed-once-20261123"
+        ],
+        [
+          "c1fc3dcf68b5df2a096f43f0e1052b63260822da",
+          "9ccf0109648b670abc8563fd49b7d2f3be86b5da"
+        ],
+        [
+          "diagnostic: durable first origin recovery once (20261123-p3)",
+          "diagnostic: reviewed first origin retry once (20261123-p5)"
+        ],
+        [
+          "tools/natural-reads/recovery400-manifest.json",
+          "tools/natural-reads/retry400-manifest.json"
+        ],
+        [
+          "FIXED_ORIGIN_RECOVERY_400_JA_ONCE_NO_SCORE",
+          "FIXED_REVIEWED_ORIGIN_400_JA_ONCE_NO_SCORE"
+        ]
+      ]
+    },
+    {
+      "old": "tools/natural-reads/recovery400-gateway.mjs",
+      "new": "tools/natural-reads/retry400-gateway.mjs",
+      "pairs": [
+        [
+          "'../origin-capture/once-output.mjs'",
+          "'../origin-capture/retry-output.mjs'"
+        ],
+        [
+          "'./recovery400-admission.mjs'",
+          "'./retry400-admission.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/natural-reads/recovery400-child.mjs",
+      "new": "tools/natural-reads/retry400-child.mjs",
+      "pairs": [
+        [
+          "'../origin-capture/once-output.mjs'",
+          "'../origin-capture/retry-output.mjs'"
+        ],
+        [
+          "'./recovery400-admission.mjs'",
+          "'./retry400-admission.mjs'"
+        ],
+        [
+          "'./recovery400-gateway.mjs'",
+          "'./retry400-gateway.mjs'"
+        ]
+      ]
+    },
+    {
+      "old": "tools/natural-reads/recovery400-entry.mjs",
+      "new": "tools/natural-reads/retry400-entry.mjs",
+      "pairs": [
+        [
+          "'../origin-capture/once-output.mjs'",
+          "'../origin-capture/retry-output.mjs'"
+        ],
+        [
+          "'./recovery400-admission.mjs'",
+          "'./retry400-admission.mjs'"
+        ],
+        [
+          "'./recovery400-child.mjs'",
+          "'./retry400-child.mjs'"
+        ]
+      ]
+    }
+  ]
+}

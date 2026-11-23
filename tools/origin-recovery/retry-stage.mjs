@@ -1,0 +1,3 @@
+// Process observation only. No browser calls, requests or changes to gate predicates.
+import{requireParent}from'./retry-parent-evidence.mjs';
+export async function withParentStage(stage,work){const m=requireParent(stage);try{if(!m.mark('WORK_STARTED'))throw Error('FIXED_PARENT_RECORD_UNAVAILABLE');const passed=await work({returned:()=>m.mark('WORK_RETURNED')});if(!m.mark('PROOF_SAVED'))throw Error('FIXED_PARENT_RECORD_UNAVAILABLE');if(passed!==true){m.fault('REPORTED_STAGE_FAILURE');process.exitCode=1;return false;}if(!m.mark('STAGE_COMPLETE'))throw Error('FIXED_PARENT_RECORD_UNAVAILABLE');return true;}catch(e){m.fault('CAUGHT_STAGE',e);m.mark('CAUGHT_STAGE');process.exitCode=1;return false;}}

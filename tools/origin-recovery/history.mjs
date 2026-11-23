@@ -68,9 +68,29 @@ const DELTAS={
     "historical": [
       "24c94d47b3c401047e2fea5479ed29b97e89cb074ab117e39d8c87c0143f8a4e"
     ]
+  },
+  "tools/natural-reads/fixture-workflow.test.mjs": {
+    "current": "5183c7dd4482fb19b078b779e601ea8e82267d1e155afd54d36c32b46cafba98",
+    "historical": [
+      "eafd89775f7f6a932cb8ba117b177b51a60143848c0c8e42e52a03f3968e8381"
+    ]
+  },
+  "tools/natural-reads/scoped240.test.mjs": {
+    "current": "13da45a391a00b17c7fed318aa43a9a8dd7219c82f6c4957cddac892fabd96b8",
+    "historical": [
+      "3bc53316979adc8fa4aa4ed4903fbfa85ec3418b0b8738c5fa9eafaf3e2b9daa"
+    ]
   }
 };
+const HASH_PINS={
+  "tools/natural-reads/fixture-workflow.test.mjs": "eafd89775f7f6a932cb8ba117b177b51a60143848c0c8e42e52a03f3968e8381",
+  "tools/natural-reads/fixture-stop.test.mjs": "00c550fbb6b5b7817847f6b2fa74c016410f13ed0198cca9cefbd48c9ff6abc2",
+  "tools/natural-reads/scoped240.test.mjs": "3bc53316979adc8fa4aa4ed4903fbfa85ec3418b0b8738c5fa9eafaf3e2b9daa",
+  "tools/natural-reads/stop-record.test.mjs": "21d8b0638a4dd9274140cb60b446ac0fa7d962c13e0d80ce83a229699c04e38c"
+};
 const hash=b=>createHash('sha256').update(b).digest('hex');
-export function reviewedHistoricalEqual(path,current,before){const d=DELTAS[path];return d?hash(current)===d.current&&d.historical.includes(hash(before)):Buffer.from(current).equals(Buffer.from(before));}
+export function reviewedHistoricalHashEqual(path,current,before){if(typeof path!=='string'||typeof current!=='string'||typeof before!=='string'||!(/^[a-f0-9]{64}$/).test(current)||!(/^[a-f0-9]{64}$/).test(before))return false;if(current===before)return true;const d=Object.hasOwn(DELTAS,path)?DELTAS[path]:null;return !!d&&Object.hasOwn(HASH_PINS,path)&&current===d.current&&before===HASH_PINS[path];}
+export function assertReviewedHistoricalHash(path,before){assert(reviewedHistoricalHashEqual(path,hash(readFileSync(path)),before),'FIXED_HISTORICAL_HASH_MISMATCH');}
+export function reviewedHistoricalEqual(path,current,before){if(typeof path!=='string')return false;const d=Object.hasOwn(DELTAS,path)?DELTAS[path]:null;return d?hash(current)===d.current&&d.historical.includes(hash(before)):Buffer.from(current).equals(Buffer.from(before));}
 export function assertReviewedHistoricalFile(path,before){assert(reviewedHistoricalEqual(path,readFileSync(path),before),'FIXED_HISTORICAL_SOURCE_MISMATCH');}
 export const REVIEWED_PATHS=Object.freeze(Object.keys(DELTAS));

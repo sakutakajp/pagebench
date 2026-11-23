@@ -1,0 +1,157 @@
+name: One-time reviewed unit repair and sealed first-origin fixed400 observation
+on:
+  push:
+    branches: [diag/first-origin-reviewed-once-20261123]
+    paths: [.github/workflows/staging-first-origin-reviewed-once-20261123.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-first-origin-reviewed-once-20261123
+  cancel-in-progress: false
+jobs:
+  closed:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/first-origin-reviewed-once-20261123' &&
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'diagnostic: reviewed first origin retry once (20261123-p5)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 17
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without install hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Existing native-brand unit contracts
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {readdir,writeFile} from 'node:fs/promises';
+          const groups={baseline:{files:(await readdir('tools/cdp-startup-diagnostic')).filter(x=>x.endsWith('.test.mjs')).sort().map(x=>'tools/cdp-startup-diagnostic/'+x),expected:474},AB:{files:['tools/ab-observe/test.mjs'],expected:48},origin:{files:['tools/origin-capture/test.mjs'],expected:45},originIntegration:{files:['tools/origin-capture/once.test.mjs'],expected:49},recoveryHistory:{files:['tools/origin-recovery/history.test.mjs'],expected:22},recoveryWorkflow:{files:['tools/origin-recovery/contracts.test.mjs'],expected:25},historicalHashPairs:{files:['tools/origin-recovery/history-hash.test.mjs'],expected:16},retryContracts:{files:['tools/origin-recovery/retry-contracts.test.mjs'],expected:32}};
+          const result={kind:'origin400-unit-proof',status:'passed',sha:process.env.GITHUB_SHA,node24:process.version,groups:{}};
+          for(const [name,g]of Object.entries(groups)){const r=spawnSync(process.execPath,['--test',...g.files],{encoding:'utf8',timeout:120000,maxBuffer:10485760});const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));const ok=process.version==='v24.19.0'&&typeof Error.isError==='function'&&r.status===0&&c.tests===g.expected&&c.pass===g.expected&&c.fail===0&&c.skipped===0&&c.cancelled===0;result.groups[name]={status:ok?'passed':'failed',...c};if(!ok)result.status='failed';}
+          await writeFile('origin400-unit-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(result.status!=='passed')process.exitCode=1;
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Strict ownership binding proxy and closed-runner contracts
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';import {readFile,writeFile} from 'node:fs/promises';
+          const groups={strict:{file:'strict.test.mjs',expected:27},scope:{file:'scope-fetch.test.mjs',expected:23},bound:{file:'bound-prefetch.test.mjs',expected:40},natural:{file:'natural-prefetch.test.mjs',expected:18},reads:{file:'../natural-reads/test.mjs',expected:51},live:{file:'../natural-reads/live.test.mjs',expected:31},fixture:{file:'../natural-reads/fixture-stop.test.mjs',expected:178},workflow:{file:'../natural-reads/fixture-workflow.test.mjs',expected:8},stop:{file:'../natural-reads/stop-record.test.mjs',expected:45},scoped:{file:'../natural-reads/scoped240.test.mjs',expected:29},proof:{file:'../natural-reads/scoped240-proof-contract.test.mjs',expected:22},run400:{file:'../natural-reads/scoped400.test.mjs',expected:43},startup:{file:'../natural-reads/startup.test.mjs',expected:23},integration:{file:'../natural-reads/startup400.test.mjs',expected:29},proxyFault:{file:'../proxy-fault/proxy-fault.test.mjs',expected:18},proxyCleanup:{file:'../cdp-startup-diagnostic/cleanup.test.mjs',expected:7},parentMonitor:{file:'../origin-recovery/parent.test.mjs',expected:35},retryStrict:{file:'../origin-recovery/retry-strict.test.mjs',expected:12}};
+          const result=JSON.parse(await readFile('origin400-unit-proof.json','utf8'));result.node22=process.version;
+          for(const [name,g]of Object.entries(groups)){const r=spawnSync(process.execPath,['--unhandled-rejections=strict','--test','tools/nuxt-debug/'+g.file],{encoding:'utf8',timeout:60000,maxBuffer:1048576});const c=Object.fromEntries([...r.stdout.matchAll(/(?:#|ℹ) (tests|pass|fail|skipped|cancelled) (\d+)/g)].map(m=>[m[1],Number(m[2])]));const ok=process.version==='v22.19.0'&&r.status===0&&c.tests===g.expected&&c.pass===g.expected&&c.fail===0&&c.skipped===0&&c.cancelled===0;result.groups[name]={status:ok?'passed':'failed',...c};if(!ok)result.status='failed';}
+          await writeFile('origin400-unit-proof.json',JSON.stringify(result),{mode:0o600});console.log(JSON.stringify(result));if(result.status!=='passed')process.exitCode=1;
+          JS
+      - name: Native real Chrome controls persisted before later work
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: native
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('native',async({returned})=>{
+            const{runClosedBrowser}=await import('./tools/natural-reads/browser.mjs');const{browserFileHash}=await import('./tools/ab-observe/config.mjs');const{saveParentFixed}=await import('./tools/natural-reads/live-entry.mjs');
+            const stamp={workflow_sha:process.env.GITHUB_SHA,run_id:process.env.GITHUB_RUN_ID};let native;
+            try{const hash=await browserFileHash();native={...await runClosedBrowser(),...stamp,binary_sha256:hash};if(await browserFileHash()!==hash)throw Error();}catch{native={kind:'CLOSED_NATURAL_READS_NOT_LIVE',...stamp,status:'failed',continuation:'STOP_UNCERTAIN_SAFETY_OR_FAILURE',reason:'BROWSER_UNAVAILABLE_OR_CLOSED_FAILURE',real_site_navigations:0,score_saved:false};}
+            returned();saveParentFixed(native,'natural-native-closed-proof.json');return native.status==='passed'&&native.continuation==='SAFE_CLOSED_NEXT_SUITE';
+          });
+          JS
+      - name: Top-runner real Chrome controls persisted independently
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: top
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('top',async({returned})=>{
+            const{runStartupTop,persistStartupTop}=await import('./tools/natural-reads/startup-proof.mjs');const stamp={workflow_sha:process.env.GITHUB_SHA,run_id:process.env.GITHUB_RUN_ID};let top;
+            try{top={...await runStartupTop(),...stamp};}catch{top={kind:'TOP_RUNNER_REAL_CHROME_CLOSED_PROOF',...stamp,status:'failed',reason:'CLOSED_FAILURE',real_site_navigations:0,score_saved:false};}
+            returned();const saved=persistStartupTop(top,{sha:stamp.workflow_sha,run:stamp.run_id});return saved.top.status==='passed';
+          });
+          JS
+      - name: Fixed240 counterpart in closed real Chrome and bounded readback
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: scoped240
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('scoped240',async({returned})=>{
+            const{runScoped240Browser}=await import('./tools/natural-reads/scoped240-browser.mjs');const{writeFile,readFile}=await import('node:fs/promises');
+          let result;try{result={...await runScoped240Browser(),workflow_sha:process.env.GITHUB_SHA,run_id:process.env.GITHUB_RUN_ID};}catch{result={kind:'SCOPED240_REAL_CHROME_CLOSED_PROOF',status:'failed',real_site_navigations:0,score_saved:false};}
+          returned();const text=JSON.stringify(result);await writeFile('scoped240-closed-proof.json',text,{flag:'wx',mode:0o600});if(await readFile('scoped240-closed-proof.json','utf8')!==text)throw Error('FIXED_READBACK');return result.status==='passed';
+          });
+          JS
+      - name: Exact400 closed Chrome natural-prefetch duplicate and cap readback
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: scoped400
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('scoped400',async({returned})=>{
+            const{runScoped400Browser}=await import('./tools/natural-reads/scoped400-browser.mjs');const{writeFile,readFile}=await import('node:fs/promises');
+          let result;try{result={...await runScoped400Browser(),workflow_sha:process.env.GITHUB_SHA,run_id:process.env.GITHUB_RUN_ID};}catch{result={kind:'SCOPED400_REAL_CHROME_CLOSED_PROOF',status:'failed',reason:'FIXED_CLOSED_FAILURE',real_site_navigations:0,score_saved:false,report_saved:false};}
+          returned();const text=JSON.stringify(result);await writeFile('scoped400-closed-proof.json',text,{flag:'wx',mode:0o600});if(await readFile('scoped400-closed-proof.json','utf8')!==text)throw Error('FIXED_READBACK');return result.status==='passed';
+          });
+          JS
+      - name: Closed real Chrome first-origin normal and denied-script controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: origin
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('origin',async({returned})=>{
+            const{runOriginProof}=await import('./tools/origin-capture/once-proof.mjs');const{runClosedOrigin}=await import('./tools/origin-capture/retry-closed-browser.mjs');const{saveParentFixed}=await import('./tools/natural-reads/live-entry.mjs');const{readFile}=await import('node:fs/promises');
+          let r;try{r=await runOriginProof({run:runClosedOrigin});}catch{r={kind:'ORIGIN400_CLOSED_REAL_CHROME_PROOF',status:'failed',reason:'FIXED_ORIGIN_CLOSED_FAILURE',cases:[],real_site_navigations:0,score_saved:false,report_saved:false};}
+          returned();saveParentFixed(r,'origin-closed-proof.json');if(await readFile('origin-closed-proof.json','utf8')!==JSON.stringify(r))throw Error('FIXED_READBACK');return r.status==='passed';
+          });
+          JS
+      - name: Exact JIT then one fixed ja observation only
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_RECOVERY_STAGE: live
+        run: |
+          node --unhandled-rejections=strict --import ./tools/origin-recovery/retry-preload.mjs --input-type=module >/dev/null 2>&1 <<'JS'
+          import{withParentStage}from'./tools/origin-recovery/retry-stage.mjs';
+          await withParentStage('live',async({returned})=>{
+            const{runScoped400}=await import('./tools/natural-reads/retry400-entry.mjs');const{saveParentFixed}=await import('./tools/natural-reads/live-entry.mjs');
+            const r=await runScoped400();returned();saveParentFixed(r,'scoped400-fixed.json');return r.status==='OBSERVED_WINDOW_NO_SCORE';
+          });
+          JS
+      - name: Fixed parent-stage evidence even after failure
+        if: always()
+        run: node tools/origin-recovery/retry-project.mjs 2>/dev/null
+      - name: Fixed proof only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-origin-recovery-fixed-proof
+          retention-days: 1
+          if-no-files-found: ignore
+          path: |
+            origin400-unit-proof.json
+            natural-native-closed-proof.json
+            natural-top-closed-proof.json
+            startup-closed-proof.json
+            scoped240-closed-proof.json
+            scoped400-closed-proof.json
+            scoped400-fixed.json
+            origin-closed-proof.json
+            origin400-capture-fixed.json
+            origin400-sealed.json
+            origin-recovery-parent-native.json
+            origin-recovery-parent-top.json
+            origin-recovery-parent-scoped240.json
+            origin-recovery-parent-scoped400.json
+            origin-recovery-parent-origin.json
+            origin-recovery-parent-live.json
+            origin-recovery-parent-fixed.json
