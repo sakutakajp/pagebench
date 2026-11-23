@@ -3,7 +3,7 @@ import {createPublicKey,createPrivateKey,publicEncrypt,privateDecrypt,randomByte
   createCipheriv,createDecipheriv,createHash,constants} from 'node:crypto';
 import {isProxy} from 'node:util/types';
 const descriptor=Object.getOwnPropertyDescriptor,hasOwn=Object.hasOwn;
-export const REF='refs/heads/diag/first-origin-script-once-20261123';
+export const REF='refs/heads/diag/first-origin-recovery-once-20261123';
 export const MAX_URL=8192,PLAIN_BYTES=1024;
 const own=(o,k)=>{try{if(!o||typeof o!=='object'||isProxy(o))return undefined;const d=descriptor(o,k);return d&&hasOwn(d,'value')?d.value:undefined;}catch{return undefined;}};
 const invalid=()=>{throw Error('SEALED_ORIGIN_INVALID');};
