@@ -1,0 +1,15 @@
+// TEST ONLY: fabricated fixed parent/case evidence, never Chrome or live data.
+import {TOP_CASES} from '../natural-reads/top-memory.mjs';
+export const HASH='a'.repeat(64),CHROME='Chrome/157.0.8103.78';
+const view={meta:'PRESENT',layout:'MATCH',screen:'MATCH',dpr:'MATCH'};
+const initial=()=>({state:'ORIGINAL_CONTENT',body:'GE20',original_main:true,original_heading:true,heading:true,error_status:null,viewport:{...view}});
+const error=()=>({state:'ERROR_500',body:'LT20',original_main:false,original_heading:false,heading:true,error_status:500,viewport:{...view}});
+function startup(code){return{capture:{state:'VALID',evidence:{kind:'FIXED_NODE_STARTUP_NOT_BROWSER_CONSOLE',events:['PRELOAD_READY','ENTRY_REACHED','START_GRANTED','OPEN_GUARDED_ENTER','OPEN_GUARDED_RETURNED','FIRST_PROGRESS_RETURNED','FINAL_SEND_CALLBACK','PROCESS_EXIT'],last_phase:'PROCESS_EXIT',first_error:null,secondary_errors:0,exit_code:code,overflow:false,recording_failed:false,write_attempts:6}},semantics:'NODE_PROCESS_STARTUP_NOT_BROWSER_OR_NUXT_ERROR',preload_gap:true,error_presence:'UNKNOWN_NO_RECORDED_NODE_ERROR',child_close_seen:true,start_grant_callback:'QUEUED_NOT_CONSUMPTION_PROOF',ipc_progress:'OBSERVED',disk_progress:'VALID',final_message:'OBSERVED',close_signal:'NO_SIGNAL',group_signal:'NOT_REQUESTED',group_after_close:'NOT_CHECKED',physical_browser_cleanup:'COMPLETE'};}
+export function modelCases(){return new Map(TOP_CASES.map((name,i)=>{
+ const negative=i>=3,handled=i===1||i===2,consoleError=i===2;
+ const fail=name==='metadata_http500'?{category:'HTTP_STATUS',resource:'HOME_METADATA',status:500}:name==='static_http404'?{category:'HTTP_STATUS',resource:'NUXT_STATIC',status:404}:name==='metadata_cancel'?{category:'NETWORK_FAILURE',resource:'HOME_METADATA',network:['CANCELED']}:null;
+ const evidence={phase:'CLEANUP',first_fatal:negative?name==='metadata_cancel'?'AB_BOUNDARY_NETWORK':'AB_BOUNDARY_RESPONSE':null,first_refusal:null,receiver_active:0,receiver_peak:1,receiver_rejections:0,secondary_failures:0,emergency:negative?'RETURNED':'NOT_REQUESTED',cleanup:'COMPLETE',documents:1,http_status:200,metadata:null};
+ const signals={first_response_failure:fail,uncaught_exception:'NOT_OBSERVED_IN_SCOPED_WINDOW',uncaught_count:0,console_error:consoleError?'OBSERVED':'NOT_OBSERVED_IN_SCOPED_WINDOW',console_error_count:consoleError?1:0};
+ const observation={chrome:CHROME,navigation_invocations:1,documents:1,http_status:200,samples:{first:initial(),end:handled?error():initial(),same_document:true},nuxt_error:{hooks:{events:handled?[{source:'APP_ERROR_HOOK',status_code:500}]:[]}},passive_signals:signals,evidence,phase:'CLEANUP'};
+ return[name,{kind:'natural-parent',status:negative?'STOPPED':'OBSERVED',reason:negative?'GUARD_OR_CHILD_FAILURE':'FIXED_OBSERVATION_COMPLETE',child_started:true,exit_code:negative?1:0,unexpected_stdout:false,unexpected_stderr:false,group_stop:'NOT_REQUESTED',cleanup:'COMPLETE',transport:{kind:'CLOSED_ABSENT',upstream:0,open_sockets:0,closed:true,forwarding:'ABSENT'},startup:startup(negative?1:0),progress:{phase:'CLEANUP',evidence,passive_signals:signals},observation}];
+}));}
