@@ -1,0 +1,8 @@
+// Read input evidence, rebuild separate fixed output; never overwrite a prefix.
+import {join} from 'node:path';import {fileURLToPath} from 'node:url';
+import {PROOF} from './config.mjs';import {publicSummary,fixedWrite} from './records.mjs';
+import {identity,readOwner} from './evidence.mjs';import {readSummary,selectSummary} from './summary.mjs';
+import {stageComplete} from './monitor.mjs';
+export const RESULT='public-entry-result.json';
+export function publish(directory='.'){const s=identity(),owner=readOwner(directory,s),primary=readSummary(join(directory,PROOF),s),backup=readSummary(join(directory,'public-entry-prefix.json'),s),summary=selectSummary(backup,primary,s),source=summary&&primary&&JSON.stringify(summary)===JSON.stringify(primary)?'PRIMARY_FIXED_RECORD':summary?'LAST_VALID_FIXED_PREFIX':'NONE',complete=stageComplete('live',s)&&owner?.sealed&&owner.exit_code===0&&owner.first_failure===null&&owner.recording==='COMPLETE_PREFIX'&&owner.admission==='RETURNED'&&owner.start_marker==='MATCHED'&&owner.parent==='RETURNED'&&owner.record==='WRITTEN_AND_READBACK'&&owner.directory_cleanup==='COMPLETE'&&summary?.status==='OBSERVATION_COMPLETE_NO_SCORE',out={kind:'FIXED_ENTRY_RECOVERY_RESULT',scope:s,owner,observation_summary:summary??publicSummary({identity:s}),input_state:summary?'VALID_SAME_SCOPE_PREFIX':'MISSING_INVALID_OR_FOREIGN',source,navigation_verdict:owner?.navigation_verdict??'UNKNOWN',operation:complete?'COMPLETED_OBSERVATION_NO_SCORE':'STOPPED_OR_UNKNOWN',observation_is_not_lighthouse:true,score_saved:false,report_saved:false};fixedWrite(out,join(directory,RESULT),65536);return out;}
+if(process.argv[1]===fileURLToPath(import.meta.url)){try{console.log(JSON.stringify(publish()));}catch{process.exitCode=1;}}

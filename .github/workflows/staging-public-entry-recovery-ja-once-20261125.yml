@@ -1,0 +1,101 @@
+name: One-time recovered entry and guarded ja observation
+on:
+  push:
+    branches: [diag/public-entry-recovery-ja-once-20261125]
+    paths: [.github/workflows/staging-public-entry-recovery-ja-once-20261125.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-public-entry-recovery-ja-once-20261125
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/public-entry-recovery-ja-once-20261125' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: fixed entry recovery ja once (20261125-u1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 22
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: All inherited and exact entry contracts Node24
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node24 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node24 >/dev/null 2>&1
+          node tools/entry-recovery/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: All inherited and exact entry contracts Node22
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node22 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node22 >/dev/null 2>&1
+          node tools/entry-recovery/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact source and sole push-run unit admission
+        run: node tools/entry-recovery/admission.mjs >/dev/null 2>&1
+      - name: Six native natural-read controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: native
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/preflight.mjs native >/dev/null 2>&1
+      - name: Six actual top-runner and startup controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: top
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/preflight.mjs top >/dev/null 2>&1
+      - name: Two unchanged ordinary240 counterpart controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: scoped240
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/preflight.mjs scoped240 >/dev/null 2>&1
+      - name: Two unchanged400 natural-prefetch and boundary controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: scoped400
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/preflight.mjs scoped400 >/dev/null 2>&1
+      - name: Two real Chrome public-counter controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: counter
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/preflight.mjs counter >/dev/null 2>&1
+      - name: Exact same-SHA JIT and at most one guarded ja observation
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: live
+        run: node --unhandled-rejections=strict --import ./tools/entry-recovery/preload.mjs --import ./tools/entry-recovery/monitor.mjs tools/entry-recovery/entry.mjs --execute-once >/dev/null 2>&1
+      - name: Publish rebuilt fixed evidence only
+        if: always()
+        run: node tools/entry-recovery/public-log.mjs 2>/dev/null
+      - name: Fixed projections only no primary prefix raw proof or request data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-entry-recovery-ja-fixed-20261125-u1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-filesystem-units.json
+            public-rejection-units.json
+            public-top-units.json
+            public-entry-units.json
+            public-top-diagnostics.json
+            public-entry-result.json
+            public-entry-stages.json
