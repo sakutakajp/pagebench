@@ -1,0 +1,16 @@
+[
+  ".github/workflows/staging-script-owner-storage-ja-once-20261125.yml",
+  "tools/script-owner-storage/README.md",
+  "tools/script-owner-storage/added-paths.json",
+  "tools/script-owner-storage/admission.mjs",
+  "tools/script-owner-storage/config.mjs",
+  "tools/script-owner-storage/entry.mjs",
+  "tools/script-owner-storage/gateway.mjs",
+  "tools/script-owner-storage/publish.mjs",
+  "tools/script-owner-storage/records.mjs",
+  "tools/script-owner-storage/regression.mjs",
+  "tools/script-owner-storage/source-pins.json",
+  "tools/script-owner-storage/storage.mjs",
+  "tools/script-owner-storage/test.mjs",
+  "tools/script-owner-storage/unit.mjs"
+]

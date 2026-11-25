@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync}from'node:fs';
+import {storageScope}from'./storage.mjs';import {REF}from'./config.mjs';
+const identity={mode:'GHA_STANDALONE_SIMULATED',sha:'a'.repeat(40),run:'1234',ref:REF,attempt:1};const grant=()=>({...identity,binary:'b'.repeat(64),chrome:'Chrome/157.0.8103.78'});
+test('canonical storage identity preserves the unchanged seven-field grant',()=>{const g=grant(),before=JSON.stringify(g),s=storageScope(g,identity);assert.deepEqual(s,identity);assert.equal(Object.keys(s).length,5);assert.equal(Object.keys(g).length,7);assert.equal(JSON.stringify(g),before);assert(Object.isFrozen(s));});
+for(const[key,value]of[['mode','OTHER'],['sha','c'.repeat(40)],['run','99'],['ref','refs/heads/diag/foreign'],['attempt',2]])test('foreign grant '+key+' cannot be truncated into acceptance',()=>assert.throws(()=>storageScope({...grant(),[key]:value},identity)));
+for(const[key,value]of[['extra','value'],['binary','invalid'],['chrome','private text']])test('invalid grant '+key+' rejected',()=>assert.throws(()=>storageScope({...grant(),[key]:value},identity)));
+test('missing grant key rejected',()=>{const g=grant();delete g.chrome;assert.throws(()=>storageScope(g,identity));});
+test('five-field identity is not a browser grant',()=>assert.throws(()=>storageScope(identity,identity)));
+test('extra canonical identity rejected',()=>assert.throws(()=>storageScope(grant(),{...identity,extra:'value'})));
+test('foreign canonical identity rejected',()=>assert.throws(()=>storageScope(grant(),{...identity,run:'99'})));
+test('proxy reflection is not invoked',()=>{let n=0;const p=new Proxy(grant(),{ownKeys(){n++;throw Error();},getOwnPropertyDescriptor(){n++;throw Error();},get(){n++;throw Error();}});assert.throws(()=>storageScope(p,identity));assert.equal(n,0);});
+test('getter is not invoked',()=>{let n=0;const g={...grant(),get chrome(){n++;throw Error();}};assert.throws(()=>storageScope(g,identity));assert.equal(n,0);});
+test('production default entry calls the shared production storage seam',()=>{const s=readFileSync(new URL('./entry.mjs',import.meta.url),'utf8');assert(s.includes("import {openOwnerRecord} from './storage.mjs'"));assert(s.includes('const owner=openOwnerRecord(s);'));assert(!s.includes('ownerRecord(s)'));});
+if(process.version==='v22.19.0')test('real LIVE grant production writer and publisher CLI causally repair storage',async()=>{const{runRegression}=await import('./regression.mjs');const r=await runRegression();assert.equal(r.status,'passed');assert(r.cases.every(x=>x.passed));assert.equal(r.actual_node,'v22.19.0');assert.equal(r.real_browser,false);assert.equal(r.site_requests,0);});
