@@ -1,0 +1,9 @@
+export const BASE='29b5270987096b80b6cf2c6153fbfe545bd71e21';
+export const REF='refs/heads/diag/public-rejection-ja-once-20261125';
+export const SUBJECT='diagnostic: fixed public rejection counts ja once (20261125-s1)';
+export const WORKFLOW='.github/workflows/staging-public-rejection-ja-once-20261125.yml';
+export const PROOF='public-rejection-fixed.json';
+export const CLOSED='public-rejection-closed.json';
+export const UNITS='public-rejection-units.json';
+export const TEST_COUNT=38;
+export const PUBLIC_PATHS=Object.freeze([]); // No independently proven public exact paths.

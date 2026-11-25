@@ -1,0 +1,22 @@
+[
+  ".github/workflows/staging-public-rejection-ja-once-20261125.yml",
+  "tools/public-rejection-logs/README.md",
+  "tools/public-rejection-logs/added-paths.json",
+  "tools/public-rejection-logs/admission.mjs",
+  "tools/public-rejection-logs/child.mjs",
+  "tools/public-rejection-logs/closed-browser.mjs",
+  "tools/public-rejection-logs/config.mjs",
+  "tools/public-rejection-logs/control.mjs",
+  "tools/public-rejection-logs/counts.mjs",
+  "tools/public-rejection-logs/entry-control.mjs",
+  "tools/public-rejection-logs/entry.mjs",
+  "tools/public-rejection-logs/gateway.mjs",
+  "tools/public-rejection-logs/monitor.mjs",
+  "tools/public-rejection-logs/preflight.mjs",
+  "tools/public-rejection-logs/proof-contract.mjs",
+  "tools/public-rejection-logs/publish.mjs",
+  "tools/public-rejection-logs/records.mjs",
+  "tools/public-rejection-logs/source-pins.json",
+  "tools/public-rejection-logs/test.mjs",
+  "tools/public-rejection-logs/unit.mjs"
+]

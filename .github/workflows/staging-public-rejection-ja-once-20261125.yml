@@ -1,0 +1,100 @@
+name: One-time fixed public rejection logs and guarded ja observation
+on:
+  push:
+    branches: [diag/public-rejection-ja-once-20261125]
+    paths: [.github/workflows/staging-public-rejection-ja-once-20261125.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-public-rejection-ja-once-20261125
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/public-rejection-ja-once-20261125' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: fixed public rejection counts ja once (20261125-s1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 20
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: All existing and public counter contracts Node24
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node24 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: All existing and public counter contracts Node22
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node22 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact source and sole push-run unit admission
+        run: node tools/public-rejection-logs/admission.mjs >/dev/null 2>&1
+      - name: Six native natural-read controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: native
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/preflight.mjs native >/dev/null 2>&1
+      - name: Six actual top-runner and startup controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: top
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/preflight.mjs top >/dev/null 2>&1
+      - name: Two unchanged ordinary240 counterpart controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: scoped240
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/preflight.mjs scoped240 >/dev/null 2>&1
+      - name: Two unchanged400 natural-prefetch and boundary controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: scoped400
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/preflight.mjs scoped400 >/dev/null 2>&1
+      - name: Two real Chrome public-counter normal and denied controls
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: counter
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/preflight.mjs counter >/dev/null 2>&1
+      - name: Exact same-SHA JIT and one existing guarded ja observation
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_PUBLIC_STAGE: live
+        run: node --unhandled-rejections=strict --import ./tools/public-rejection-logs/monitor.mjs tools/public-rejection-logs/entry.mjs --execute-once >/dev/null 2>&1
+      - name: Publish only rebuilt fixed safe logs
+        if: always()
+        run: node tools/public-rejection-logs/publish.mjs 2>/dev/null
+      - name: Fixed evidence only no paths cipher keys or raw logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-rejection-ja-fixed-20261125-s1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-filesystem-units.json
+            public-rejection-units.json
+            public-rejection-closed.json
+            public-rejection-fixed.json
+            public-stage-native.json
+            public-stage-top.json
+            public-stage-scoped240.json
+            public-stage-scoped400.json
+            public-stage-counter.json
+            public-stage-live.json
