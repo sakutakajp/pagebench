@@ -1,0 +1,15 @@
+[
+  ".github/workflows/proxy-cleanup-evidence-closed-once-20261125.yml",
+  "tools/proxy-cleanup-evidence/README.md",
+  "tools/proxy-cleanup-evidence/added-paths.json",
+  "tools/proxy-cleanup-evidence/admission.mjs",
+  "tools/proxy-cleanup-evidence/cleanup-evidence.mjs",
+  "tools/proxy-cleanup-evidence/config.mjs",
+  "tools/proxy-cleanup-evidence/entry.mjs",
+  "tools/proxy-cleanup-evidence/native.mjs",
+  "tools/proxy-cleanup-evidence/publish.mjs",
+  "tools/proxy-cleanup-evidence/records.mjs",
+  "tools/proxy-cleanup-evidence/source-pins.json",
+  "tools/proxy-cleanup-evidence/test.mjs",
+  "tools/proxy-cleanup-evidence/unit.mjs"
+]
