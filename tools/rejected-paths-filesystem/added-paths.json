@@ -1,0 +1,15 @@
+[
+  ".github/workflows/rejected-paths-filesystem-closed-once-20261125.yml",
+  "tools/rejected-paths-filesystem/README.md",
+  "tools/rejected-paths-filesystem/added-paths.json",
+  "tools/rejected-paths-filesystem/admission.mjs",
+  "tools/rejected-paths-filesystem/browser.mjs",
+  "tools/rejected-paths-filesystem/config.mjs",
+  "tools/rejected-paths-filesystem/contract.mjs",
+  "tools/rejected-paths-filesystem/file-store.mjs",
+  "tools/rejected-paths-filesystem/loader.mjs",
+  "tools/rejected-paths-filesystem/report.mjs",
+  "tools/rejected-paths-filesystem/source-pins.json",
+  "tools/rejected-paths-filesystem/test.mjs",
+  "tools/rejected-paths-filesystem/unit.mjs"
+]

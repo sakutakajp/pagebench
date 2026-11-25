@@ -1,0 +1,9 @@
+export const BASE='7ca889514ea37f78fc7cfe53f933954a4b94e26e';
+export const REF='refs/heads/diag/rejected-paths-filesystem-closed-once-20261125';
+export const SUBJECT='diagnostic: synthetic rejected paths real filesystem Chrome proof once (20261125-r1)';
+export const WORKFLOW='.github/workflows/rejected-paths-filesystem-closed-once-20261125.yml';
+export const PROOF='rejected-paths-filesystem-proof.json';
+export const UNITS='rejected-paths-filesystem-units.json';
+export const CASES=Object.freeze(['duplicates','write_conflict','readback_change']);
+export const SCOPE_RUN='CLOSED_REAL_FILESYSTEM_FIXED';
+export const TEST_COUNT=39;
