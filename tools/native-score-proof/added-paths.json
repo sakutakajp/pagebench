@@ -1,0 +1,19 @@
+[
+  ".github/workflows/native-score-closed-once-20261125.yml",
+  "tools/native-score-proof/README.md",
+  "tools/native-score-proof/added-paths.json",
+  "tools/native-score-proof/admission.mjs",
+  "tools/native-score-proof/budget.mjs",
+  "tools/native-score-proof/case-project.mjs",
+  "tools/native-score-proof/config.mjs",
+  "tools/native-score-proof/history-test.mjs",
+  "tools/native-score-proof/main.mjs",
+  "tools/native-score-proof/monitor.mjs",
+  "tools/native-score-proof/native.mjs",
+  "tools/native-score-proof/publish.mjs",
+  "tools/native-score-proof/score.mjs",
+  "tools/native-score-proof/source-pins.json",
+  "tools/native-score-proof/state.mjs",
+  "tools/native-score-proof/test.mjs",
+  "tools/native-score-proof/unit.mjs"
+]

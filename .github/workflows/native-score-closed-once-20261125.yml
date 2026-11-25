@@ -1,0 +1,76 @@
+name: One-time native case and natural Lighthouse closed proof
+on:
+  push:
+    branches: [diag/native-score-proof-once-20261125]
+    paths: [.github/workflows/native-score-closed-once-20261125.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-native-score-closed-once-20261125
+  cancel-in-progress: false
+jobs:
+  closed:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/native-score-proof-once-20261125' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: native cases and natural score closed proof once (20261125-v1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 23
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Existing regressions and closed contracts Node24
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node24 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node24 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Existing regressions and closed contracts Node22
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node22 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node22 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node22 >/dev/null 2>&1
+          node tools/native-score-proof/history-test.mjs >/dev/null 2>&1
+      - name: Exact source and sole push-run closed admission
+        run: node tools/native-score-proof/admission.mjs >/dev/null 2>&1
+      - name: Native cases cap400 and genuine Lighthouse fixed fixture only
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          PB_NATIVE_SCORE: CLOSED
+        run: node --unhandled-rejections=strict --import ./tools/native-score-proof/monitor.mjs tools/native-score-proof/main.mjs --closed-once >/dev/null 2>&1
+      - name: Publish independently rebuilt fixed cases even after failure
+        if: always()
+        run: node tools/native-score-proof/publish.mjs 2>/dev/null
+      - name: Fixed projections only no raw report trace images or journal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-natural-score-closed-fixed-20261125-v1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-filesystem-units.json
+            public-rejection-units.json
+            public-top-units.json
+            native-score-units.json
+            native-score-history.json
+            native-score-public.json
