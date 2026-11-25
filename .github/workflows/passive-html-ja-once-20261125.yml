@@ -1,0 +1,53 @@
+name: One-time passive single HTML document baseline without browser or JavaScript
+on:
+  push:
+    branches: [diag/passive-html-ja-once-20261125]
+    paths: [.github/workflows/passive-html-ja-once-20261125.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-passive-html-ja-once-20261125
+  cancel-in-progress: false
+jobs:
+  passive:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/passive-html-ja-once-20261125' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: passive single document html baseline once (20261125-z4)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Closed transport parser projection and admission controls Node24
+        run: node --unhandled-rejections=strict tools/passive-html/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Identical closed controls Node22
+        run: node --unhandled-rejections=strict tools/passive-html/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact one-use admission then sole passive document GET
+        run: node --unhandled-rejections=strict tools/passive-html/entry.mjs 2>/dev/null
+      - name: Fixed receipts only no source headers reference strings or report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passive-html-fixed-20261125-z4
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            passive-html-node22.json
+            passive-html-node24.json
+            passive-html-public.json

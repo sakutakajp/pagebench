@@ -1,0 +1,16 @@
+{
+  "parent": "5f19827fbe442840db801c568b7933633d058059",
+  "files": {
+    ".github/workflows/passive-html-ja-once-20261125.yml": "0d17ab31a3619c6aac2946b9bb285418c202ba93b2f4c7700e5c518f34f27fb7",
+    "tools/passive-html/REVIEW.md": "31a333072cfe2767938dcf4cb6c9763964e7f0845dfa354763dab237589b8354",
+    "tools/passive-html/added-paths.json": "248aa030a4ac9fff28141101468243e82275eec1de04ac3fb143465b71e7b703",
+    "tools/passive-html/admission.mjs": "c2ed8a8cdd213e7c310eda3971fd89be9bc9150f70e7e744b3865d0042397e17",
+    "tools/passive-html/config.mjs": "71f6da889f5dd16b29b20fae46bcc5ee60f3b617537332af69bdfa43815f7e09",
+    "tools/passive-html/entry.mjs": "be23371c976e6790a70aba70a229a3f102f1797da5b72b8a4afcb5a0651c2adf",
+    "tools/passive-html/parser.py": "878c56670e777970e55788f46da6ff68050e0394faa6d9997d0b1a1618a3e5ac",
+    "tools/passive-html/project.mjs": "b94b1cb62def414eff3b29a5b7b5fcb0ad7bd2b0659373a4158e2a7b39c4bf06",
+    "tools/passive-html/test.mjs": "922098db8ee9cbe7800a7b26538e50737597fc8c4e97bc5000f4f5a0a24464d7",
+    "tools/passive-html/transport.mjs": "bfe7e90e127b8842044b0427257300c689453089341a20bac62bb5286349ceb6",
+    "tools/passive-html/unit.mjs": "98a7085390a885a9f417998d6154dfb2e8a7289bde3ce906e0c27a0278f52ea0"
+  }
+}

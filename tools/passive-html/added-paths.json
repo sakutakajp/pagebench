@@ -1,0 +1,14 @@
+[
+  ".github/workflows/passive-html-ja-once-20261125.yml",
+  "tools/passive-html/REVIEW.md",
+  "tools/passive-html/added-paths.json",
+  "tools/passive-html/admission.mjs",
+  "tools/passive-html/config.mjs",
+  "tools/passive-html/entry.mjs",
+  "tools/passive-html/parser.py",
+  "tools/passive-html/project.mjs",
+  "tools/passive-html/source-pins.json",
+  "tools/passive-html/test.mjs",
+  "tools/passive-html/transport.mjs",
+  "tools/passive-html/unit.mjs"
+]
