@@ -1,0 +1,23 @@
+[
+  ".github/workflows/staging-standalone-simulated-ja-once-20261125.yml",
+  "tools/standalone-score/README.md",
+  "tools/standalone-score/added-paths.json",
+  "tools/standalone-score/admission.mjs",
+  "tools/standalone-score/closed.mjs",
+  "tools/standalone-score/config.mjs",
+  "tools/standalone-score/control.mjs",
+  "tools/standalone-score/entry.mjs",
+  "tools/standalone-score/gateway.mjs",
+  "tools/standalone-score/measure.mjs",
+  "tools/standalone-score/native-arm.mjs",
+  "tools/standalone-score/origin-mask.mjs",
+  "tools/standalone-score/publish.mjs",
+  "tools/standalone-score/records.mjs",
+  "tools/standalone-score/resources.mjs",
+  "tools/standalone-score/result.mjs",
+  "tools/standalone-score/source-pins.json",
+  "tools/standalone-score/state.mjs",
+  "tools/standalone-score/test-fixtures.mjs",
+  "tools/standalone-score/test.mjs",
+  "tools/standalone-score/unit.mjs"
+]
