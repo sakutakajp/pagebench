@@ -1,0 +1,18 @@
+[
+  ".github/workflows/staging-script-owner-ja-once-20261125.yml",
+  "tools/script-owner/README.md",
+  "tools/script-owner/added-paths.json",
+  "tools/script-owner/admission.mjs",
+  "tools/script-owner/config.mjs",
+  "tools/script-owner/entry.mjs",
+  "tools/script-owner/gateway.mjs",
+  "tools/script-owner/native.mjs",
+  "tools/script-owner/observer.mjs",
+  "tools/script-owner/owner-record.mjs",
+  "tools/script-owner/publish.mjs",
+  "tools/script-owner/records.mjs",
+  "tools/script-owner/source-pins.json",
+  "tools/script-owner/test-fixtures.mjs",
+  "tools/script-owner/test.mjs",
+  "tools/script-owner/unit.mjs"
+]
