@@ -1,0 +1,14 @@
+[
+  ".github/workflows/admission-evidence-closed-once-20261125.yml",
+  "tools/admission-evidence/README.md",
+  "tools/admission-evidence/added-paths.json",
+  "tools/admission-evidence/admission.mjs",
+  "tools/admission-evidence/config.mjs",
+  "tools/admission-evidence/entry.mjs",
+  "tools/admission-evidence/model-proofs.json",
+  "tools/admission-evidence/publish.mjs",
+  "tools/admission-evidence/records.mjs",
+  "tools/admission-evidence/source-pins.json",
+  "tools/admission-evidence/test.mjs",
+  "tools/admission-evidence/unit.mjs"
+]

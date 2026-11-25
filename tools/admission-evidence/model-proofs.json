@@ -1,0 +1,497 @@
+{
+  "provenance": "LOCAL_EXACT_PARENT_PRODUCER_OUTPUTS_SHA_REBOUND_FOR_CONTROLLED_TEST_ONLY",
+  "files": {
+    "rejected-paths-unit-proof.json": {
+      "kind": "FIXED_REJECTED_PATH_UNIT_PROOF",
+      "status": "passed",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "groups": [
+        {
+          "name": "baseline",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 474,
+            "pass": 474,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "AB",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 48,
+            "pass": 48,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "origin",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 45,
+            "pass": 45,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "originIntegration",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 49,
+            "pass": 49,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "recoveryHistory",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 22,
+            "pass": 22,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "recoveryWorkflow",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 25,
+            "pass": 25,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "historicalHashPairs",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 16,
+            "pass": 16,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "retryContracts",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 32,
+            "pass": 32,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "fixedChrome24",
+          "node": "24.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 24,
+            "pass": 24,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "strict",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 27,
+            "pass": 27,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "scope",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 23,
+            "pass": 23,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "bound",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 40,
+            "pass": 40,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "natural",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "reads",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 51,
+            "pass": 51,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "live",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 31,
+            "pass": 31,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "fixture",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 178,
+            "pass": 178,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "workflow",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 8,
+            "pass": 8,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "stop",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 45,
+            "pass": 45,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "scoped",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 29,
+            "pass": 29,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "proof",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 22,
+            "pass": 22,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "run400",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 43,
+            "pass": 43,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "startup",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 23,
+            "pass": 23,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "integration",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 29,
+            "pass": 29,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "proxyFault",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "proxyCleanup",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 7,
+            "pass": 7,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "parentMonitor",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 35,
+            "pass": 35,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "retryStrict",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 12,
+            "pass": 12,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        },
+        {
+          "name": "fixedChrome22",
+          "node": "22.19.0",
+          "status": "passed",
+          "counts": {
+            "tests": 24,
+            "pass": 24,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "stderr_present": false
+        }
+      ]
+    },
+    "rejected-paths-filesystem-units.json": {
+      "kind": "CLOSED_FILESYSTEM_UNIT_PROOF",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "passed",
+      "groups": [
+        {
+          "node": "v24.19.0",
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        },
+        {
+          "node": "v22.19.0",
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        }
+      ]
+    },
+    "public-rejection-units.json": {
+      "kind": "PUBLIC_COUNTER_UNIT_PROOF",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "passed",
+      "groups": [
+        {
+          "node": "v24.19.0",
+          "tests": 38,
+          "pass": 38,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        },
+        {
+          "node": "v22.19.0",
+          "tests": 38,
+          "pass": 38,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        }
+      ]
+    },
+    "public-top-units.json": {
+      "kind": "PUBLIC_TOP_UNIT_PROOF",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "passed",
+      "groups": [
+        {
+          "node": "v24.19.0",
+          "tests": 58,
+          "pass": 58,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        },
+        {
+          "node": "v22.19.0",
+          "tests": 62,
+          "pass": 62,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        }
+      ]
+    },
+    "native-score-units.json": {
+      "kind": "NATIVE_SCORE_UNIT_PROOF",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "passed",
+      "groups": [
+        {
+          "node": "v24.19.0",
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        },
+        {
+          "node": "v22.19.0",
+          "tests": 70,
+          "pass": 70,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0,
+          "todo": 0,
+          "status": "passed"
+        }
+      ]
+    },
+    "native-score-history.json": {
+      "kind": "HISTORICAL_SLOT20_ADMISSION_TESTS",
+      "source_sha": "416b0c66c490b8d7a6127f37a75e7a74ef2eb6be",
+      "node": "v22.19.0",
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "status": "passed",
+      "source_is_not_current_job_sha": true
+    }
+  }
+}
