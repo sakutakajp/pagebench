@@ -1,0 +1,109 @@
+name: One-time scoped Cloudflare Script guarded standalone simulated Lighthouse
+on:
+  push:
+    branches: [diag/selected-staging-ja-once-20261126]
+    paths: [.github/workflows/staging-selected-policy-ja-once-20261126.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-staging-selected-cli-once-20261126
+  cancel-in-progress: false
+jobs:
+  standalone:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/selected-staging-ja-once-20261126' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: selected staging policy measurement once (20261126-ad1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 64
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Unchanged regressions and admission evidence Node24
+        id: units24
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node24 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node24 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node24 >/dev/null 2>&1
+          node tools/admission-evidence/unit.mjs node24 >/dev/null 2>&1
+          node tools/proxy-cleanup-evidence/unit.mjs node24 >/dev/null 2>&1
+          node tools/standalone-score/unit.mjs node24 >/dev/null 2>&1
+          node tools/script-owner/unit.mjs node24 >/dev/null 2>&1
+          node tools/staging-selected-cli/storage-history.mjs node24 >/dev/null 2>&1
+          node tools/staging-selected-cli/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Unchanged regressions and admission evidence Node22
+        id: units22
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node22 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node22 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node22 >/dev/null 2>&1
+          node tools/native-score-proof/history-test.mjs >/dev/null 2>&1
+          node tools/admission-evidence/unit.mjs node22 >/dev/null 2>&1
+          node tools/proxy-cleanup-evidence/unit.mjs node22 >/dev/null 2>&1
+          node tools/standalone-score/unit.mjs node22 >/dev/null 2>&1
+          node tools/script-owner/unit.mjs node22 >/dev/null 2>&1
+          node tools/staging-selected-cli/storage-history.mjs node22 >/dev/null 2>&1
+          node tools/staging-selected-cli/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact source and sole push-run admission with fixed predicates
+        id: precheck
+        run: node --unhandled-rejections=strict tools/staging-selected-cli/bootstrap.mjs --admit-only >/dev/null 2>&1
+      - name: Unchanged thirteen native controls then registered-policy Slot34 five closed controls
+        id: closed
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node --unhandled-rejections=strict tools/staging-selected-cli/bootstrap.mjs --closed-once >/dev/null 2>&1
+      - name: Exact JIT then standalone simulated staging once with unchanged hard guards
+        id: staging
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node --unhandled-rejections=strict tools/staging-selected-cli/bootstrap.mjs --measure-once >/dev/null 2>&1
+      - name: Independently reconstruct fixed admission and native evidence
+        if: always()
+        env:
+          PB_STAGING_SELECTED_CLI_UNITS24: ${{ steps.units24.outcome }}
+          PB_STAGING_SELECTED_CLI_UNITS22: ${{ steps.units22.outcome }}
+          PB_STAGING_SELECTED_CLI_PRECHECK: ${{ steps.precheck.outcome }}
+          PB_STAGING_SELECTED_CLI_CLOSED: ${{ steps.closed.outcome }}
+          PB_STAGING_SELECTED_CLI_STAGING: ${{ steps.staging.outcome }}
+        run: node tools/staging-selected-cli/publish.mjs 2>/dev/null
+      - name: Fixed projections only no raw journal report trace or stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-selected-cli-fixed-20261126-ad1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-filesystem-units.json
+            public-rejection-units.json
+            public-top-units.json
+            native-score-units.json
+            native-score-history.json
+            admission-evidence-units.json
+            proxy-cleanup-evidence-units.json
+            standalone-score-units.json
+            script-owner-units.json
+            script-owner-storage-units.json
+            staging-selected-storage-history.json
+            staging-selected-cli-units.json
+            staging-selected-cli-public.json

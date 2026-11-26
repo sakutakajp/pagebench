@@ -1,0 +1,23 @@
+[
+  ".github/workflows/staging-selected-policy-ja-once-20261126.yml",
+  "tools/staging-selected-cli/README.md",
+  "tools/staging-selected-cli/added-paths.json",
+  "tools/staging-selected-cli/admission.mjs",
+  "tools/staging-selected-cli/bootstrap.mjs",
+  "tools/staging-selected-cli/config.mjs",
+  "tools/staging-selected-cli/control.mjs",
+  "tools/staging-selected-cli/entry.mjs",
+  "tools/staging-selected-cli/gateway.mjs",
+  "tools/staging-selected-cli/measure.mjs",
+  "tools/staging-selected-cli/native.mjs",
+  "tools/staging-selected-cli/publish.mjs",
+  "tools/staging-selected-cli/records.mjs",
+  "tools/staging-selected-cli/result.mjs",
+  "tools/staging-selected-cli/source-pins.json",
+  "tools/staging-selected-cli/state.mjs",
+  "tools/staging-selected-cli/storage-history.mjs",
+  "tools/staging-selected-cli/storage.mjs",
+  "tools/staging-selected-cli/test-fixtures.mjs",
+  "tools/staging-selected-cli/test.mjs",
+  "tools/staging-selected-cli/unit.mjs"
+]
