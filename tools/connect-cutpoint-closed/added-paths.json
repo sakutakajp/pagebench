@@ -1,0 +1,14 @@
+[
+  ".github/workflows/connect-cutpoint-closed-once-20261126.yml",
+  "tools/connect-cutpoint-closed/README.md",
+  "tools/connect-cutpoint-closed/added-paths.json",
+  "tools/connect-cutpoint-closed/admission.mjs",
+  "tools/connect-cutpoint-closed/config.mjs",
+  "tools/connect-cutpoint-closed/entry.mjs",
+  "tools/connect-cutpoint-closed/record.mjs",
+  "tools/connect-cutpoint-closed/runner.mjs",
+  "tools/connect-cutpoint-closed/source-pins.json",
+  "tools/connect-cutpoint-closed/startup-import.test.mjs",
+  "tools/connect-cutpoint-closed/test.mjs",
+  "tools/connect-cutpoint-closed/unit.mjs"
+]
