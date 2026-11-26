@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "staging-ja-cloudflare-script-400-v1",
+  "activation": "EXPLICIT_SELECTION_AFTER_EXISTING_ADMISSION",
+  "target": "https://staging.hirameki.dev/ja/",
+  "origins": ["https://staging.hirameki.dev", "https://image.hirameki.dev", "https://static.cloudflareinsights.com"],
+  "new_origin_resource_types": ["Script"],
+  "new_origin_methods": ["GET", "HEAD"],
+  "https_port": 443,
+  "document_limit": 1,
+  "request_limit": 400,
+  "inflight_limit": 6,
+  "prefetch": "SAME_POLICY_AS_ORDINARY_READS",
+  "path_query_policy": "UNCHANGED_REVIEWED_STATIC_AND_PUBLIC_CONTENT_POLICY",
+  "publication": "FIXED_PROJECTION_ONLY",
+  "authority": "CONFIGURATION_ONLY_NOT_MEASUREMENT_AUTHORIZATION"
+}
