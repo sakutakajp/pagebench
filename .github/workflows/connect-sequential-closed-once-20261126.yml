@@ -1,0 +1,57 @@
+name: One-time sequential-import closed CONNECT comparison
+on:
+  push:
+    branches: [diag/connect-sequential-closed-once-20261126]
+    paths: [.github/workflows/connect-sequential-closed-once-20261126.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pagebench-connect-sequential-closed-once-20261126
+  cancel-in-progress: false
+jobs:
+  closed:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/connect-sequential-closed-once-20261126' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: sequential import closed comparison once (20261126-ag1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Existing locked dependencies no scripts or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Real Node24 TCP lifecycle and unchanged controls
+        run: node tools/connect-sequential-closed/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Real Node22 TCP lifecycle and unchanged controls
+        run: node tools/connect-sequential-closed/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact admission and closed normal sandbox Chrome comparison only
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+        run: node --unhandled-rejections=strict tools/connect-sequential-closed/entry.mjs --closed-once >/dev/null 2>&1
+      - name: Strict fixed evidence on success or failure no raw output
+        if: always()
+        run: node tools/connect-sequential-closed/entry.mjs --publish 2>/dev/null
+      - name: Fixed receipts only no raw proofs reports traces or stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connect-sequential-closed-fixed-20261126-ag1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            connect-sequential-units.json
+            connect-sequential-fixed.json

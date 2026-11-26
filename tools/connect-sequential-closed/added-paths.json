@@ -1,0 +1,14 @@
+[
+  ".github/workflows/connect-sequential-closed-once-20261126.yml",
+  "tools/connect-sequential-closed/README.md",
+  "tools/connect-sequential-closed/added-paths.json",
+  "tools/connect-sequential-closed/admission.mjs",
+  "tools/connect-sequential-closed/config.mjs",
+  "tools/connect-sequential-closed/entry.mjs",
+  "tools/connect-sequential-closed/record.mjs",
+  "tools/connect-sequential-closed/runner.mjs",
+  "tools/connect-sequential-closed/source-pins.json",
+  "tools/connect-sequential-closed/startup-import.test.mjs",
+  "tools/connect-sequential-closed/test.mjs",
+  "tools/connect-sequential-closed/unit.mjs"
+]
