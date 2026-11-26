@@ -1,0 +1,15 @@
+{
+  "parent": "6fe75b1678ab9607835a4da8a91e9ac14dbb8459",
+  "files": {
+    ".github/workflows/passive-html-admission-ja-once-20261126.yml": "534f60040f1c663eca74a0eca899dcb42c375a49c9284a9d465e72b7598b6281",
+    "tools/passive-html-admission/REVIEW.md": "064db458731c286ade6242ea81f0dcc562eaba3d4368bd709ccef49a01eb342a",
+    "tools/passive-html-admission/added-paths.json": "2ecfac5e5c0652276ca40a63325eebea05190ed4a90de1f2456c938ded53db5e",
+    "tools/passive-html-admission/admission-category.mjs": "4d3f7e12fb32a456e37dc0607678c31f72a9f5d8a9afa9aa82114dee74e737fd",
+    "tools/passive-html-admission/admission.mjs": "1efde72b8755275f071e662ca0d2119c9ca3666b8f29d22f140764d5415d6085",
+    "tools/passive-html-admission/config.mjs": "0b26609207f90ce35836fc85c9bfd4dc5ef5e89e6128e5558199f530896c4863",
+    "tools/passive-html-admission/entry.mjs": "64e3f604c916046262a3873916337ce7a026a3a5a67f48e03620451c5bfcb064",
+    "tools/passive-html-admission/project.mjs": "7c469a31f8ccba90351f44659940f47af2a9bab8b3c5112a9934b985f702ef0a",
+    "tools/passive-html-admission/test.mjs": "2ce2802e84f2c40f1c2496690b5d4fe0332646da356d90fd4caa8b8090ae24c4",
+    "tools/passive-html-admission/unit.mjs": "b90b82eec22dd9314b99721df2466c4c087538fb4e569ad7946b2f36fb7a3f69"
+  }
+}

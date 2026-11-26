@@ -1,0 +1,13 @@
+[
+  ".github/workflows/passive-html-admission-ja-once-20261126.yml",
+  "tools/passive-html-admission/REVIEW.md",
+  "tools/passive-html-admission/added-paths.json",
+  "tools/passive-html-admission/admission-category.mjs",
+  "tools/passive-html-admission/admission.mjs",
+  "tools/passive-html-admission/config.mjs",
+  "tools/passive-html-admission/entry.mjs",
+  "tools/passive-html-admission/project.mjs",
+  "tools/passive-html-admission/source-pins.json",
+  "tools/passive-html-admission/test.mjs",
+  "tools/passive-html-admission/unit.mjs"
+]
