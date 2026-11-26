@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "staging-ja-cloudflare-beacon-get-400-v2",
+  "activation": "EXPLICIT_SELECTION_AFTER_EXISTING_ADMISSION",
+  "target": "https://staging.hirameki.dev/ja/",
+  "origins": [
+    "https://staging.hirameki.dev",
+    "https://image.hirameki.dev",
+    "https://static.cloudflareinsights.com"
+  ],
+  "new_origin_resource_types": [
+    "Script"
+  ],
+  "new_origin_methods": [
+    "GET",
+    "HEAD"
+  ],
+  "https_port": 443,
+  "document_limit": 1,
+  "request_limit": 400,
+  "inflight_limit": 6,
+  "prefetch": "SAME_POLICY_AS_ORDINARY_READS",
+  "path_query_policy": "BASE_POLICY_WITH_QUERYLESS_BEACON_GET_AND_OBSERVED_VERSION_SHAPE",
+  "publication": "FIXED_PROJECTION_ONLY",
+  "authority": "CONFIGURATION_ONLY_NOT_MEASUREMENT_AUTHORIZATION",
+  "base_policy_id": "staging-ja-cloudflare-script-400-v1",
+  "beacon_read": {
+    "methods": [
+      "GET"
+    ],
+    "types": [
+      "Script"
+    ],
+    "raw_urls": [
+      "https://static.cloudflareinsights.com/beacon.min.js",
+      "https://static.cloudflareinsights.com:443/beacon.min.js"
+    ],
+    "query": "ABSENT",
+    "suffix": "V_HEX32_DECIMAL13_ONE_SEGMENT",
+    "suffix_length": 46,
+    "suffix_segments": 1,
+    "mime": [
+      "text/javascript",
+      "application/javascript"
+    ]
+  }
+}

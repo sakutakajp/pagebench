@@ -1,0 +1,39 @@
+{
+  "kind": "SINGLE_CURRENT_PASSIVE_HTML_SUFFIX_SHAPE_ONLY",
+  "request_attempts": 1,
+  "redirect_followed": false,
+  "javascript_executed": false,
+  "subresource_requests": 0,
+  "http_status": 200,
+  "status": "LEXICAL_SCANNED",
+  "body_saved": false,
+  "suffix_value_saved": false,
+  "query_values_saved": false,
+  "build_identity": "NOT_ESTABLISHED",
+  "same_as_preview_441": "UNKNOWN",
+  "same_as_slot35": "UNKNOWN",
+  "rows": [
+    {
+      "origin": "CLOUDFLARE_STATIC",
+      "url_form": "ABSOLUTE_HTTPS",
+      "origin_guard": "PASS",
+      "query": "ABSENT",
+      "fragment": "ABSENT",
+      "reference": "PUBLIC_REFERENCE_WITH_SUFFIX",
+      "suffix_length": 46,
+      "segments": 1,
+      "segment_shapes": [
+        {
+          "length": 46,
+          "class": "V_THEN_LOWER_HEX",
+          "trailing_decimal_length": 17
+        }
+      ],
+      "narrow_v_hex32_decimal13": true,
+      "raw_origin_spelling": "CANONICAL"
+    }
+  ],
+  "parser_ambiguity": false,
+  "unfinished_inert": false,
+  "candidate_script_count": 1
+}

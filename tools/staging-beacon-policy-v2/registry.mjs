@@ -1,0 +1,5 @@
+import{readFileSync}from'node:fs';import{selectPolicy as baseSelect,POLICY_ID as BASE_ID,ORIGINS}from'../staging-measurement-policy/registry.mjs';
+export{ORIGINS};export const POLICY_ID='staging-ja-cloudflare-beacon-get-400-v2';
+const expected={...baseSelect(BASE_ID),id:POLICY_ID,path_query_policy:'BASE_POLICY_WITH_QUERYLESS_BEACON_GET_AND_OBSERVED_VERSION_SHAPE',base_policy_id:BASE_ID,beacon_read:{methods:['GET'],types:['Script'],raw_urls:['https://static.cloudflareinsights.com/beacon.min.js','https://static.cloudflareinsights.com:443/beacon.min.js'],query:'ABSENT',suffix:'V_HEX32_DECIMAL13_ONE_SEGMENT',suffix_length:46,suffix_segments:1,mime:['text/javascript','application/javascript']}};
+const raw=JSON.parse(readFileSync(new URL('./registration.json',import.meta.url)));if(JSON.stringify(raw)!==JSON.stringify(expected))throw Error('STAGING_POLICY_INVALID');
+export function selectPolicy(id){if(id!==POLICY_ID)throw Error('STAGING_POLICY_SELECTION_REQUIRED');return structuredClone(raw);}
