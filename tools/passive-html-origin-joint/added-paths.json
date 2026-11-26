@@ -1,0 +1,17 @@
+[
+  ".github/workflows/passive-html-origin-joint-ja-once-20261126.yml",
+  "tools/passive-html-origin-joint/README.md",
+  "tools/passive-html-origin-joint/added-paths.json",
+  "tools/passive-html-origin-joint/admission-category.mjs",
+  "tools/passive-html-origin-joint/admission.mjs",
+  "tools/passive-html-origin-joint/config.mjs",
+  "tools/passive-html-origin-joint/entry.mjs",
+  "tools/passive-html-origin-joint/origin-test.mjs",
+  "tools/passive-html-origin-joint/origin.mjs",
+  "tools/passive-html-origin-joint/parser.py",
+  "tools/passive-html-origin-joint/project.mjs",
+  "tools/passive-html-origin-joint/scan.mjs",
+  "tools/passive-html-origin-joint/source-pins.json",
+  "tools/passive-html-origin-joint/test.mjs",
+  "tools/passive-html-origin-joint/unit.mjs"
+]
