@@ -1,0 +1,13 @@
+[
+  ".github/workflows/passive-html-channels-ja-once-20261126.yml",
+  "tools/passive-html-channels/REVIEW.md",
+  "tools/passive-html-channels/added-paths.json",
+  "tools/passive-html-channels/admission.mjs",
+  "tools/passive-html-channels/config.mjs",
+  "tools/passive-html-channels/entry.mjs",
+  "tools/passive-html-channels/parser.py",
+  "tools/passive-html-channels/project.mjs",
+  "tools/passive-html-channels/source-pins.json",
+  "tools/passive-html-channels/test.mjs",
+  "tools/passive-html-channels/unit.mjs"
+]
