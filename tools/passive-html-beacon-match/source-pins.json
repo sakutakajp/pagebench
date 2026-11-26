@@ -1,0 +1,18 @@
+{
+  "parent": "40344b83c1120202be92f261f39b267034a47d8e",
+  "files": {
+    ".github/workflows/passive-html-beacon-match-ja-once-20261126.yml": "a9db5bbba589c7f3a0741b15d4951a7792636c332188475950e55c21c7c666d8",
+    "tools/passive-html-beacon-match/README.md": "7764bfca13d3cc9493e7f066bac792900655e038789f93e763f354842fd614bb",
+    "tools/passive-html-beacon-match/added-paths.json": "be55842ea843bb1c5b270de4b7fcbdb00d2d4d451cdf09c16b3b5ec0bfc038d5",
+    "tools/passive-html-beacon-match/admission-category.mjs": "4d3f7e12fb32a456e37dc0607678c31f72a9f5d8a9afa9aa82114dee74e737fd",
+    "tools/passive-html-beacon-match/admission.mjs": "8de78d017dbceb2623c456846e0eb0edf68be79d87e0d877b776205341cd084a",
+    "tools/passive-html-beacon-match/beacon-test.mjs": "baa1a90e45cf329a052493518b18a0c115a59b16a1cee7954c58a51e1aa05900",
+    "tools/passive-html-beacon-match/beacon.mjs": "24e64479850dbeb7f29d0f2cf0e63a28ec6c0700e1ab2fb786dc8a55cd30e3b9",
+    "tools/passive-html-beacon-match/config.mjs": "7c1b915903d2a36ad38e4dd6be53d4e2b09abf13f7250f15db250af13b7b15d9",
+    "tools/passive-html-beacon-match/entry.mjs": "7f18d6fa271a962453e6adbc15516d40337c12b4b6cbe0bd8a36eb91de9b038f",
+    "tools/passive-html-beacon-match/project.mjs": "21bafdad5fb4f49379260b7c039aa55cf16a7a0917c799f34849a997f3a445e4",
+    "tools/passive-html-beacon-match/scan.mjs": "38fb09b3bfd622723a5019d8a7c5cd51b75941a8a7992c32892be0f79053dc0e",
+    "tools/passive-html-beacon-match/test.mjs": "3737dabfff23de29d1c47d5c60a0355c690c7ddc7e0fe961d87c65307a9f107a",
+    "tools/passive-html-beacon-match/unit.mjs": "28cdd6b291a7dcab5f415ba2d60bc8b4529e07760f3f270a3e82d2bdbda6a431"
+  }
+}

@@ -1,0 +1,16 @@
+[
+  ".github/workflows/passive-html-beacon-match-ja-once-20261126.yml",
+  "tools/passive-html-beacon-match/README.md",
+  "tools/passive-html-beacon-match/added-paths.json",
+  "tools/passive-html-beacon-match/admission-category.mjs",
+  "tools/passive-html-beacon-match/admission.mjs",
+  "tools/passive-html-beacon-match/beacon-test.mjs",
+  "tools/passive-html-beacon-match/beacon.mjs",
+  "tools/passive-html-beacon-match/config.mjs",
+  "tools/passive-html-beacon-match/entry.mjs",
+  "tools/passive-html-beacon-match/project.mjs",
+  "tools/passive-html-beacon-match/scan.mjs",
+  "tools/passive-html-beacon-match/source-pins.json",
+  "tools/passive-html-beacon-match/test.mjs",
+  "tools/passive-html-beacon-match/unit.mjs"
+]
