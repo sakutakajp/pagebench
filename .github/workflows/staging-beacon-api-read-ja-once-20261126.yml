@@ -1,0 +1,115 @@
+name: One-time job-token API read and guarded beacon staging Lighthouse
+on:
+  push:
+    branches: [diag/beacon-api-read-ja-once-20261126]
+    paths: [.github/workflows/staging-beacon-api-read-ja-once-20261126.yml]
+permissions: {}
+concurrency:
+  group: pagebench-staging-beacon-api-read-once-20261126
+  cancel-in-progress: false
+jobs:
+  standalone:
+    permissions:
+      contents: read
+      actions: read
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/beacon-api-read-ja-once-20261126' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: job-token scoped beacon staging once (20261126-aj1)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 64
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Locked dependencies without hooks or browser download
+        working-directory: tools/lighthouse-once
+        run: npm ci --ignore-scripts
+      - name: Unchanged regressions and admission evidence Node24
+        id: units24
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node24 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node24 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node24 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node24 >/dev/null 2>&1
+          node tools/admission-evidence/unit.mjs node24 >/dev/null 2>&1
+          node tools/proxy-cleanup-evidence/unit.mjs node24 >/dev/null 2>&1
+          node tools/standalone-score/unit.mjs node24 >/dev/null 2>&1
+          node tools/script-owner/unit.mjs node24 >/dev/null 2>&1
+          node tools/staging-beacon-api-read/storage-history.mjs node24 >/dev/null 2>&1
+          node tools/staging-beacon-api-read/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Unchanged regressions and admission evidence Node22
+        id: units22
+        run: |
+          node tools/rejected-paths-chrome/unit.mjs node22 >/dev/null 2>&1
+          node tools/rejected-paths-filesystem/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-rejection-logs/unit.mjs node22 >/dev/null 2>&1
+          node tools/public-top-run/unit.mjs node22 >/dev/null 2>&1
+          node tools/native-score-proof/unit.mjs node22 >/dev/null 2>&1
+          node tools/staging-beacon-api-read/history-test.mjs >/dev/null 2>&1
+          node tools/admission-evidence/unit.mjs node22 >/dev/null 2>&1
+          node tools/proxy-cleanup-evidence/unit.mjs node22 >/dev/null 2>&1
+          node tools/standalone-score/unit.mjs node22 >/dev/null 2>&1
+          node tools/script-owner/unit.mjs node22 >/dev/null 2>&1
+          node tools/staging-beacon-api-read/storage-history.mjs node22 >/dev/null 2>&1
+          node tools/staging-beacon-api-read/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact source and sole push-run admission with fixed predicates
+        id: precheck
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: exec node --unhandled-rejections=strict tools/staging-beacon-api-read/bootstrap.mjs --admit-only >/dev/null 2>&1
+      - name: Existing thirteen and post-flush five controls then five V2 beacon controls
+        id: closed
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          GITHUB_TOKEN: ${{ github.token }}
+        run: exec node --unhandled-rejections=strict tools/staging-beacon-api-read/bootstrap.mjs --closed-once >/dev/null 2>&1
+      - name: Exact JIT then standalone simulated staging once with unchanged hard guards
+        id: staging
+        env:
+          CHROME_PATH: /opt/google/chrome/chrome
+          GITHUB_TOKEN: ${{ github.token }}
+        run: exec node --unhandled-rejections=strict tools/staging-beacon-api-read/bootstrap.mjs --measure-once >/dev/null 2>&1
+      - name: Independently reconstruct fixed admission and native evidence
+        if: always()
+        env:
+          PB_STAGING_BEACON_API_READ_UNITS24: ${{ steps.units24.outcome }}
+          PB_STAGING_BEACON_API_READ_UNITS22: ${{ steps.units22.outcome }}
+          PB_STAGING_BEACON_API_READ_PRECHECK: ${{ steps.precheck.outcome }}
+          PB_STAGING_BEACON_API_READ_CLOSED: ${{ steps.closed.outcome }}
+          PB_STAGING_BEACON_API_READ_STAGING: ${{ steps.staging.outcome }}
+        run: node tools/staging-beacon-api-read/publish.mjs 2>/dev/null
+      - name: Fixed projections only no raw journal report trace or stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-beacon-api-read-fixed-20261126-aj1
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            rejected-paths-unit-proof.json
+            rejected-paths-filesystem-units.json
+            public-rejection-units.json
+            public-top-units.json
+            native-score-units.json
+            native-score-history.json
+            admission-evidence-units.json
+            proxy-cleanup-evidence-units.json
+            standalone-score-units.json
+            script-owner-units.json
+            script-owner-storage-units.json
+            staging-selected-storage-history.json
+            staging-beacon-api-read-units.json
+            staging-beacon-api-read-public.json
