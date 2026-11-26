@@ -1,0 +1,20 @@
+[
+  ".github/workflows/cloudflare-socket-closed-once-20261126.yml",
+  "tools/cloudflare-socket-closed/README.md",
+  "tools/cloudflare-socket-closed/added-paths.json",
+  "tools/cloudflare-socket-closed/admission.mjs",
+  "tools/cloudflare-socket-closed/browser.mjs",
+  "tools/cloudflare-socket-closed/config.mjs",
+  "tools/cloudflare-socket-closed/control.mjs",
+  "tools/cloudflare-socket-closed/entry.mjs",
+  "tools/cloudflare-socket-closed/equivalence.json",
+  "tools/cloudflare-socket-closed/fixture.mjs",
+  "tools/cloudflare-socket-closed/model-context.mjs",
+  "tools/cloudflare-socket-closed/record.mjs",
+  "tools/cloudflare-socket-closed/socket-component.mjs",
+  "tools/cloudflare-socket-closed/socket-projection.mjs",
+  "tools/cloudflare-socket-closed/socket-projection.test.mjs",
+  "tools/cloudflare-socket-closed/source-pins.json",
+  "tools/cloudflare-socket-closed/test.mjs",
+  "tools/cloudflare-socket-closed/unit.mjs"
+]

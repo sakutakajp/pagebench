@@ -1,0 +1,13 @@
+{
+  "kind": "CLOSED_SCOPE_EQUIVALENCE",
+  "reference_commit": "a10b8daf069c6d3c8537219b874410f5d8ac95f3",
+  "exact_files": {
+    "tools/staging-cloudflare-origin/config.mjs": "f82f2593fb167d4f4d5ea563884e75f6e94a8be40677812916792ed52475286c",
+    "tools/staging-cloudflare-origin/policy.mjs": "9873d69c48c078aa12c5441a299065766164272b84d731ebe22069e3e1a02556",
+    "tools/staging-cloudflare-origin/static-policy.mjs": "6391e6ac3cd3aaccfc67f20f82cebd55149d8daa49c79b0d081104b8f6f14465"
+  },
+  "reference_path": "tools/staging-cloudflare-origin/closed-gateway.mjs",
+  "boundary_core_sha256": "f128ee8454f07f0f96d84e7a458aed28b68a7e97580d869ee4daba9192b8a3d7",
+  "closed_export_sha256": "98b19e66240486f9727a9c813a4919a5877b689c006e077b4103b4a28e9695e4",
+  "live_factory_included": false
+}
