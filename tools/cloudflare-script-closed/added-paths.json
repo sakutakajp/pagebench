@@ -1,0 +1,21 @@
+[
+  ".github/workflows/cloudflare-script-closed-once-20261126.yml",
+  "tools/cloudflare-script-closed/README.md",
+  "tools/cloudflare-script-closed/added-paths.json",
+  "tools/cloudflare-script-closed/admission.mjs",
+  "tools/cloudflare-script-closed/browser.mjs",
+  "tools/cloudflare-script-closed/config.mjs",
+  "tools/cloudflare-script-closed/control.mjs",
+  "tools/cloudflare-script-closed/entry.mjs",
+  "tools/cloudflare-script-closed/equivalence.json",
+  "tools/cloudflare-script-closed/fixture.mjs",
+  "tools/cloudflare-script-closed/model-context.mjs",
+  "tools/cloudflare-script-closed/record.mjs",
+  "tools/cloudflare-script-closed/source-pins.json",
+  "tools/cloudflare-script-closed/test.mjs",
+  "tools/cloudflare-script-closed/unit.mjs",
+  "tools/staging-cloudflare-origin/closed-only-gateway.mjs",
+  "tools/staging-cloudflare-origin/config.mjs",
+  "tools/staging-cloudflare-origin/policy.mjs",
+  "tools/staging-cloudflare-origin/static-policy.mjs"
+]
