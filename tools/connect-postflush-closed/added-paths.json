@@ -1,0 +1,18 @@
+[
+  ".github/workflows/connect-postflush-closed-once-20261126.yml",
+  "tools/connect-postflush-closed/README.md",
+  "tools/connect-postflush-closed/added-paths.json",
+  "tools/connect-postflush-closed/admission.mjs",
+  "tools/connect-postflush-closed/config.mjs",
+  "tools/connect-postflush-closed/control.mjs",
+  "tools/connect-postflush-closed/entry.mjs",
+  "tools/connect-postflush-closed/net-guard.mjs",
+  "tools/connect-postflush-closed/open-model.mjs",
+  "tools/connect-postflush-closed/open.mjs",
+  "tools/connect-postflush-closed/proxy.mjs",
+  "tools/connect-postflush-closed/record.mjs",
+  "tools/connect-postflush-closed/runner.mjs",
+  "tools/connect-postflush-closed/source-pins.json",
+  "tools/connect-postflush-closed/test.mjs",
+  "tools/connect-postflush-closed/unit.mjs"
+]
