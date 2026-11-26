@@ -1,0 +1,20 @@
+{
+  "parent": "9ff9fb0248c2e97e20c611dbc7879c88029f9e26",
+  "files": {
+    ".github/workflows/passive-html-beacon-auth-ja-once-20261126.yml": "6ef31b54eb4d99727184e2d8da36519d51f8130b5e4f79b82b02d8b446390538",
+    "tools/passive-html-beacon-auth/README.md": "5db00ab24b62e67b750e812d9ca986595717132144dcdca028f371b31fc6707b",
+    "tools/passive-html-beacon-auth/added-paths.json": "ca236b1bb3908f740f7576ece3dad37a9036e40e9bf38a0062c5d6ee1e308ca7",
+    "tools/passive-html-beacon-auth/admission-category.mjs": "5f1836e764685d5cf57628caccf5ccc0f0ba957b8eed3dc274e430f35ee117a8",
+    "tools/passive-html-beacon-auth/admission.mjs": "c0be1445b0e3cc5580d2c737b29a36f36a6bf2acf31322b6c7ed31abc9a5509e",
+    "tools/passive-html-beacon-auth/auth-test.mjs": "e8e0376c2320adf44d4445b1f00dc118490a1cfd6d151f426a3282aac8295823",
+    "tools/passive-html-beacon-auth/bootstrap.mjs": "2ed5537ee32c54c97cc55d62a53d21dd0068032b1d599395ac264e161b09cd58",
+    "tools/passive-html-beacon-auth/config.mjs": "00ffcf913496fd0c4fe1f3ac002c8b1f1eef96dab39c00de2e1f0e09bf599941",
+    "tools/passive-html-beacon-auth/credential.mjs": "d08d92f2dedb11c10e163466e811141aaee2c9558b3085e73ea78e9105dd25f8",
+    "tools/passive-html-beacon-auth/entry.mjs": "907e5ba1a585bc02558892f140e7f0b2d4bd418d37a79986d84bbd415acfb56b",
+    "tools/passive-html-beacon-auth/persist.mjs": "5e25b7bbbcd234ef88e39697deace977d0a08122577225deb6d1f28f562e31e9",
+    "tools/passive-html-beacon-auth/project.mjs": "3927f6055c8b29f47da506bc61a125996ea2944ac0ff34be551753e0950138ef",
+    "tools/passive-html-beacon-auth/record.mjs": "0bb5daab302d0a74761e5677a87bc84a88bab080432ee47812f86afd6e12d212",
+    "tools/passive-html-beacon-auth/test.mjs": "c2a80d14c6d12bf650c3ec4a4e44f62d577820fe8f59f89ce36e2744ad379ed8",
+    "tools/passive-html-beacon-auth/unit.mjs": "913678fa2ff146e7e640b0ca31f4b1c2f6fcf518a36ec6d736fdc5b92f87f121"
+  }
+}

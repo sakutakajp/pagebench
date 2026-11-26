@@ -1,0 +1,2 @@
+import {writeFileSync,readFileSync,linkSync,unlinkSync} from 'node:fs';
+export function persistFixed(v){const path='passive-html-beacon-auth-public.json';const text=JSON.stringify(v);writeFileSync(path+'.tmp',text,{mode:0o600,flag:'wx'});if(readFileSync(path+'.tmp','utf8')!==text)throw Error('STORAGE');linkSync(path+'.tmp',path);unlinkSync(path+'.tmp');if(readFileSync(path,'utf8')!==text)throw Error('STORAGE');}

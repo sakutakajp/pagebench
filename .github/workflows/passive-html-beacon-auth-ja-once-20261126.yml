@@ -1,0 +1,56 @@
+name: One-time passive candidate match with bounded GitHub read authentication
+on:
+  push:
+    branches: [diag/passive-html-beacon-auth-ja-once-20261126]
+    paths: [.github/workflows/passive-html-beacon-auth-ja-once-20261126.yml]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pagebench-passive-html-beacon-auth-ja-once-20261126
+  cancel-in-progress: false
+jobs:
+  passive:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/diag/passive-html-beacon-auth-ja-once-20261126' &&
+      github.run_attempt == 1 &&
+      github.event.created == true &&
+      github.event.forced == false &&
+      github.event.deleted == false &&
+      github.event.head_commit.message == 'diagnostic: passive authenticated beacon match once (20261126-z9)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Closed transport parser projection and admission controls Node24
+        run: node --unhandled-rejections=strict tools/passive-html-beacon-auth/unit.mjs node24 >/dev/null 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Identical closed controls Node22
+        run: node --unhandled-rejections=strict tools/passive-html-beacon-auth/unit.mjs node22 >/dev/null 2>&1
+      - name: Exact one-use admission then sole passive document GET
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --unhandled-rejections=strict tools/passive-html-beacon-auth/bootstrap.mjs 2>/dev/null
+      - name: Fixed receipts only no source headers reference strings or report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passive-html-beacon-auth-fixed-20261126-z9
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            passive-html-beacon-auth-node22.json
+            passive-html-beacon-auth-node24.json
+            passive-html-beacon-auth-public.json

@@ -1,0 +1,18 @@
+[
+  ".github/workflows/passive-html-beacon-auth-ja-once-20261126.yml",
+  "tools/passive-html-beacon-auth/README.md",
+  "tools/passive-html-beacon-auth/added-paths.json",
+  "tools/passive-html-beacon-auth/admission-category.mjs",
+  "tools/passive-html-beacon-auth/admission.mjs",
+  "tools/passive-html-beacon-auth/auth-test.mjs",
+  "tools/passive-html-beacon-auth/bootstrap.mjs",
+  "tools/passive-html-beacon-auth/config.mjs",
+  "tools/passive-html-beacon-auth/credential.mjs",
+  "tools/passive-html-beacon-auth/entry.mjs",
+  "tools/passive-html-beacon-auth/persist.mjs",
+  "tools/passive-html-beacon-auth/project.mjs",
+  "tools/passive-html-beacon-auth/record.mjs",
+  "tools/passive-html-beacon-auth/source-pins.json",
+  "tools/passive-html-beacon-auth/test.mjs",
+  "tools/passive-html-beacon-auth/unit.mjs"
+]
