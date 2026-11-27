@@ -1,0 +1,19 @@
+[
+  ".github/workflows/font-http-closed-once-20261126.yml",
+  "tools/font-http-closed/README.md",
+  "tools/font-http-closed/added-paths.json",
+  "tools/font-http-closed/admission.mjs",
+  "tools/font-http-closed/assets/LICENSE.txt",
+  "tools/font-http-closed/assets/font-a.ttf",
+  "tools/font-http-closed/assets/font-b.ttf",
+  "tools/font-http-closed/config.mjs",
+  "tools/font-http-closed/entry.mjs",
+  "tools/font-http-closed/fixture.mjs",
+  "tools/font-http-closed/gateway.mjs",
+  "tools/font-http-closed/native.mjs",
+  "tools/font-http-closed/observer.mjs",
+  "tools/font-http-closed/record.mjs",
+  "tools/font-http-closed/source-pins.json",
+  "tools/font-http-closed/test.mjs",
+  "tools/font-http-closed/unit.mjs"
+]
