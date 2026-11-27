@@ -1,0 +1,15 @@
+[
+  ".github/workflows/font-route-closed-once-20261127.yml",
+  "tools/font-route-closed/README.md",
+  "tools/font-route-closed/added-paths.json",
+  "tools/font-route-closed/admission.mjs",
+  "tools/font-route-closed/audit.mjs",
+  "tools/font-route-closed/config.mjs",
+  "tools/font-route-closed/control.mjs",
+  "tools/font-route-closed/entry.mjs",
+  "tools/font-route-closed/native.mjs",
+  "tools/font-route-closed/record.mjs",
+  "tools/font-route-closed/source-pins.json",
+  "tools/font-route-closed/test.mjs",
+  "tools/font-route-closed/unit.mjs"
+]
